@@ -319,24 +319,28 @@ class Lalikan:
         if debugger:
             debugger['directories'].append(backup_prefix + timestamp)
             debugger['references'].append(reference)
+        else:
+            os.mkdir(base_directory)
+
+            cmd = 'dar --create %(base)s %(reference)s -Q %(options)s' % \
+                {'base': base_file, 'reference': reference_option, \
+                     'options': self.__backup_options}
+
+            print 'creating backup: %s\n' % cmd
+            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
+            proc.communicate()
+            retcode = proc.wait()
+            print
+
+            if retcode > 0:
+                # FIXME: maybe catch exceptions
+                # FIXME: delete slices and directory (also in "debugger")
+                raise OSError('dar exited with code %d' % retcode)
+
+        self.__delete_old_backups(backup_type, debugger)
+
+        if debugger:
             return
-
-        os.mkdir(base_directory)
-
-        cmd = 'dar --create %(base)s %(reference)s -Q %(options)s' % \
-            {'base': base_file, 'reference': reference_option, \
-                 'options': self.__backup_options}
-
-        print 'creating backup: %s\n' % cmd
-        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
-        proc.communicate()
-        retcode = proc.wait()
-        print
-
-        if retcode > 0:
-            # FIXME: maybe catch exceptions
-            # FIXME: delete slices and directory (also in "debugger")
-            raise OSError('dar exited with code %d' % retcode)
 
         if self.__backup_database:
             if not os.path.exists(self.__backup_database):
@@ -363,6 +367,51 @@ class Lalikan:
             if retcode > 0:
                 # FIXME: maybe catch exceptions
                 raise OSError('dar_manager exited with code %d' % retcode)
+
+
+    def __delete_old_backups(self, backup_type, debugger):
+        if backup_type in self.__backup_prefixes:
+            backup_prefix = self.__backup_prefixes[backup_type]
+        else:
+            raise ValueError('wrong backup type given ("%s")' % backup_type)
+
+        remove_prior = self.__find_old_backups(backup_type, None, debugger)
+        if len (remove_prior) < 2:
+            return
+        else:
+            prior_date = remove_prior[-2]
+            prior_date = prior_date[len(backup_prefix):]
+            prior_date = datetime.datetime.strptime(prior_date, \
+                                                        self.__date_format)
+
+        # please remember: never delete full backups!
+        if backup_type == 'full':
+            print '*** full: removing diff and incr prior to last full'
+            print prior_date
+            for basename in self.__find_old_backups('incremental', \
+                                                        prior_date, debugger):
+                self.__delete_backup(basename, debugger)
+            for basename in self.__find_old_backups('differential', \
+                                                        prior_date, debugger):
+                self.__delete_backup(basename, debugger)
+        elif backup_type == 'differential':
+            print '*** diff: removing incr prior to last diff'
+            print prior_date
+            for basename in self.__find_old_backups('incremental', \
+                                                        prior_date, debugger):
+                self.__delete_backup(basename, debugger)
+        elif backup_type == 'incremental':
+            pass
+
+
+    def __delete_backup(self, basename, debugger):
+        print ' * deleting %s' % basename
+        if debugger:
+            n = debugger['directories'].index(basename)
+            assert n >= 0
+
+            del debugger['directories'][n]
+            del debugger['references'][n]
 
 
     def __need_backup(self, debugger):
@@ -411,10 +460,7 @@ class Lalikan:
             raise ValueError('wrong backup type given ("%s")' % backup_type)
 
 
-    def __name_of_last_backup(self, backup_type, debugger):
-        if type(self.__last_backup_file[backup_type]) != types.NoneType:
-            return self.__last_backup_file[backup_type]
-
+    def __find_old_backups(self, backup_type, prior_date, debugger):
         if backup_type in self.__backup_prefixes:
             backup_prefix = self.__backup_prefixes[backup_type]
         else:
@@ -434,6 +480,26 @@ class Lalikan:
                         directories.append(item)
 
         directories.sort()
+
+        if type(prior_date) == datetime.datetime:
+            old_directories = directories
+            directories = []
+
+            for item in old_directories:
+                item_date = item[len(backup_prefix):]
+                item_date = datetime.datetime.strptime(item_date, \
+                                                           self.__date_format)
+                if item_date < prior_date:
+                    directories.append(item)
+
+        return directories
+
+
+    def __name_of_last_backup(self, backup_type, debugger):
+        if type(self.__last_backup_file[backup_type]) != types.NoneType:
+            return self.__last_backup_file[backup_type]
+
+        directories = self.__find_old_backups(backup_type, None, debugger)
         if len(directories) == 0:
             return None
         else:
@@ -472,5 +538,5 @@ class Lalikan:
 
 if __name__ == '__main__':
     lalikan = Lalikan()
-    # lalikan.test(31, interval=1.0)
+    # lalikan.test(60, interval=1.0)
     lalikan.run()
