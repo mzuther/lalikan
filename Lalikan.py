@@ -494,9 +494,17 @@ class Lalikan:
         else:
             for item in os.listdir(self.__backup_directory):
                 item_full = os.path.join(self.__backup_directory, item)
+                # only add item if is a directory ...
                 if os.path.isdir(item_full):
+                    # ... which name matches the date/postfix regex ...
                     if regex.match(item):
-                        directories.append(item)
+                        timestamp = item.rsplit('-', 1)[0]
+                        catalog_name = '%s-%s.1.dar' % (timestamp, "catalog")
+                        catalog_full = os.path.join(self.__backup_directory, \
+                                                        item, catalog_name)
+                        # ... and which contains a readable catalog file
+                        if os.access(catalog_full, os.R_OK):
+                            directories.append(item)
 
         directories.sort()
 
