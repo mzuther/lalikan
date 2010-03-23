@@ -94,8 +94,8 @@ class Lalikan:
             self.__section, 'command_post_run', True)
 
         self.__backup_types = ('full', 'differential', 'incremental')
-        self.__backup_prefixes = {'full': 'full_', 'differential': 'diff_', \
-                                      'incremental': 'incr_'}
+        self.__backup_postfixes = {'full': 'full', 'differential': 'diff', \
+                                      'incremental': 'incr'}
         self.__last_backup_days = {'full': None, 'differential': None, \
                                        'incremental': None}
         self.__last_backup_file = {'full': None, 'differential': None, \
@@ -126,17 +126,17 @@ class Lalikan:
                     directory = debugger['directories'][n]
                     reference = debugger['references'][n]
 
-                    if reference.startswith( \
-                            self.__backup_prefixes['differential']):
+                    if reference.endswith( \
+                            self.__backup_postfixes['differential']):
                         reference = '    %s' % reference
-                    elif reference.startswith( \
-                            self.__backup_prefixes['incremental']):
+                    elif reference.endswith( \
+                            self.__backup_postfixes['incremental']):
                         reference = '        %s' % reference
 
-                    if directory.startswith(self.__backup_prefixes['full']):
+                    if directory.endswith(self.__backup_postfixes['full']):
                         print '%s            %s' % (directory, reference)
-                    elif directory.startswith( \
-                            self.__backup_prefixes['differential']):
+                    elif directory.endswith( \
+                            self.__backup_postfixes['differential']):
                         print '    %s        %s' % (directory, reference)
                     else:
                         print '        %s    %s' % (directory, reference)
@@ -154,7 +154,8 @@ class Lalikan:
         if not self.__client_is_online():
             return False
 
-        self.__pre_run()
+        if not debugger:
+            self.__pre_run()
 
         try:
             need_backup = self.__need_backup(debugger)
@@ -180,7 +181,8 @@ class Lalikan:
 
             self.__create_backup(need_backup, debugger)
         finally:
-            self.__post_run()
+            if not debugger:
+                self.__post_run()
 
         return True
 
@@ -270,10 +272,10 @@ class Lalikan:
 
     def __create_backup(self, backup_type, debugger):
         print
-        if backup_type not in self.__backup_prefixes:
+        if backup_type not in self.__backup_postfixes:
             raise ValueError('wrong backup type given ("%s")' % backup_type)
 
-        backup_prefix = self.__backup_prefixes[backup_type]
+        backup_postfix = self.__backup_postfixes[backup_type]
 
         if backup_type == 'full':
             reference = 'none'
@@ -310,14 +312,14 @@ class Lalikan:
             now = datetime.datetime.utcnow()
 
         timestamp = now.strftime(self.__date_format)
-        base_directory = os.path.join(self.__backup_directory, \
-                                          backup_prefix + timestamp)
-        base_file = os.path.join(base_directory, backup_prefix + timestamp)
+        base_name = '%s-%s' % (timestamp, backup_postfix)
+        base_directory = os.path.join(self.__backup_directory, base_name)
+        base_file = os.path.join(base_directory, base_name)
 
         print 'basefile: %s\n' % base_file
 
         if debugger:
-            debugger['directories'].append(backup_prefix + timestamp)
+            debugger['directories'].append(base_name)
             debugger['references'].append(reference)
         else:
             os.mkdir(base_directory)
@@ -370,8 +372,8 @@ class Lalikan:
 
 
     def __delete_old_backups(self, backup_type, debugger):
-        if backup_type in self.__backup_prefixes:
-            backup_prefix = self.__backup_prefixes[backup_type]
+        if backup_type in self.__backup_postfixes:
+            backup_postfix = self.__backup_postfixes[backup_type]
         else:
             raise ValueError('wrong backup type given ("%s")' % backup_type)
 
@@ -380,7 +382,7 @@ class Lalikan:
             return
         else:
             prior_date = remove_prior[-2]
-            prior_date = prior_date[len(backup_prefix):]
+            prior_date = prior_date[:-len(backup_postfix) - 1]
             prior_date = datetime.datetime.strptime(prior_date, \
                                                         self.__date_format)
 
@@ -461,12 +463,12 @@ class Lalikan:
 
 
     def __find_old_backups(self, backup_type, prior_date, debugger):
-        if backup_type in self.__backup_prefixes:
-            backup_prefix = self.__backup_prefixes[backup_type]
+        if backup_type in self.__backup_postfixes:
+            backup_postfix = self.__backup_postfixes[backup_type]
         else:
             raise ValueError('wrong backup type given ("%s")' % backup_type)
 
-        regex = re.compile('^%s%s$' % (backup_prefix, self.__date_regex))
+        regex = re.compile('^%s-%s$' % (self.__date_regex, backup_postfix))
         directories = []
         if debugger:
             for item in debugger['directories']:
@@ -486,7 +488,7 @@ class Lalikan:
             directories = []
 
             for item in old_directories:
-                item_date = item[len(backup_prefix):]
+                item_date = item[:-len(backup_postfix) - 1]
                 item_date = datetime.datetime.strptime(item_date, \
                                                            self.__date_format)
                 if item_date < prior_date:
@@ -516,12 +518,12 @@ class Lalikan:
         if type(most_recent) == types.NoneType:
             return -1.0
         else:
-            if backup_type in self.__backup_prefixes:
-                backup_prefix = self.__backup_prefixes[backup_type]
+            if backup_type in self.__backup_postfixes:
+                backup_postfix = self.__backup_postfixes[backup_type]
             else:
                 raise ValueError('wrong backup type given ("%s")' % backup_type)
 
-            most_recent = most_recent[len(backup_prefix):]
+            most_recent = most_recent[:-len(backup_postfix) - 1]
             most_recent_datetime = datetime.datetime.strptime( \
                 most_recent, self.__date_format)
             if debugger:
