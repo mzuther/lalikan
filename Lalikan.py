@@ -303,9 +303,11 @@ class Lalikan:
                 newest_backup = 'incremental'
                 newest_age = last_incremental
 
-            reference = self.__name_of_last_backup(newest_backup, debugger)
+            reference_base = self.__name_of_last_backup(newest_backup, debugger)
+            reference_timestamp = reference_base.rsplit('-', 1)[0]
+            reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + os.path.join( \
-                self.__backup_directory, reference, reference)
+                self.__backup_directory, reference_base, reference_catalog)
         if debugger:
             now = debugger['now']
         else:
