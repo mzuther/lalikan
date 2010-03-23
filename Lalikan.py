@@ -315,6 +315,8 @@ class Lalikan:
         base_name = '%s-%s' % (timestamp, backup_postfix)
         base_directory = os.path.join(self.__backup_directory, base_name)
         base_file = os.path.join(base_directory, base_name)
+        catalog_name = '%s-%s' % (timestamp, "catalog")
+        catalog_file = os.path.join(base_directory, catalog_name)
 
         print 'basefile: %s\n' % base_file
 
@@ -329,6 +331,21 @@ class Lalikan:
                      'options': self.__backup_options}
 
             print 'creating backup: %s\n' % cmd
+            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
+            proc.communicate()
+            retcode = proc.wait()
+            print
+
+            if retcode > 0:
+                # FIXME: maybe catch exceptions
+                # FIXME: delete slices and directory (also in "debugger")
+                raise OSError('dar exited with code %d' % retcode)
+
+            # isolate catalog
+            cmd = 'dar --isolate %(base)s --ref %(reference)s -Q' % \
+                {'base': catalog_file, 'reference': base_file}
+
+            print 'isolating catalog: %s\n' % cmd
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
             proc.communicate()
             retcode = proc.wait()
