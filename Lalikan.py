@@ -52,12 +52,6 @@ class RunDar:
         # parse command line
         (options, args) = parser.parse_args()
 
-        # check whether the script runs with superuser rights
-        if (os.getuid() != 0) or (os.getgid() != 0):
-            print '\n%s\n' % \
-                _('You have to run this application with superuser rights.')
-            exit(1)
-
         self.__section = options.section
         self.__force_backup = options.force_backup
 
@@ -150,6 +144,13 @@ class RunDar:
 
 
     def run(self, debugger=None):
+        if not debugger:
+            # check whether the script runs with superuser rights
+            if (os.getuid() != 0) or (os.getgid() != 0):
+                print '\n%s\n' % \
+                    _('You have to run this application with superuser rights.')
+                exit(1)
+
         if not self.client_is_online():
             return False
 
@@ -469,4 +470,5 @@ class RunDar:
 
 if __name__ == '__main__':
     rd = RunDar()
+    #rd.test(31, interval=1.0)
     rd.run()
