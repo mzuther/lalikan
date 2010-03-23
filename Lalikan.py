@@ -23,7 +23,7 @@ gettext.textdomain('Lalikan')
 _ = gettext.lgettext
 
 
-class RunDar:
+class Lalikan:
     def __init__(self):
         # initialise version information, ...
         version_long = _('%(description)s\n%(copyrights)s\n\n%(license)s') % \
@@ -56,10 +56,10 @@ class RunDar:
         self.__force_backup = options.force_backup
 
         print settings.get_description(False)
-        self.__init()
+        self.__initialise()
 
 
-    def __init(self):
+    def __initialise(self):
         self.__backup_client = settings.get( \
             self.__section, 'backup_client', False)
         # port only required for client backup
@@ -88,9 +88,9 @@ class RunDar:
         self.__date_regex = settings.get( \
             self.__section, 'date_regex', False)
 
-        self.__pre_run = settings.get( \
+        self.__command_pre_run = settings.get( \
             self.__section, 'command_pre_run', True)
-        self.__post_run = settings.get( \
+        self.__command_post_run = settings.get( \
             self.__section, 'command_post_run', True)
 
         self.__backup_types = ('full', 'differential', 'incremental')
@@ -112,7 +112,7 @@ class RunDar:
                 debugger['now'] += datetime.timedelta(interval)
             current_day += interval
 
-            self.__init()
+            self.__initialise()
             self.__backup_client = 'localhost'
 
             created_backup = self.run(debugger)
@@ -151,26 +151,26 @@ class RunDar:
                     _('You have to run this application with superuser rights.')
                 exit(1)
 
-        if not self.client_is_online():
+        if not self.__client_is_online():
             return False
 
-        self.pre_run()
+        self.__pre_run()
 
         try:
-            need_backup = self.need_backup(debugger)
+            need_backup = self.__need_backup(debugger)
 
             print 'last full:  %7.3f  (%7.3f)  -->  %s' % \
-                (self.last_backup('full', debugger), \
+                (self.__last_backup('full', debugger), \
                      self.__backup_interval['full'], \
-                     self.need_backup_type('full', debugger))
+                     self.__need_backup_type('full', debugger))
             print 'last diff:  %7.3f  (%7.3f)  -->  %s' % \
-                (self.last_backup('differential', debugger), \
+                (self.__last_backup('differential', debugger), \
                      self.__backup_interval['differential'], \
-                     self.need_backup_type('differential', debugger))
+                     self.__need_backup_type('differential', debugger))
             print 'last incr:  %7.3f  (%7.3f)  -->  %s' % \
-                (self.last_backup('incremental', debugger), \
+                (self.__last_backup('incremental', debugger), \
                      self.__backup_interval['incremental'], \
-                     self.need_backup_type('incremental', debugger))
+                     self.__need_backup_type('incremental', debugger))
             print 'backup:     %s' % need_backup
 
             if need_backup == 'none':
@@ -178,14 +178,14 @@ class RunDar:
             elif need_backup == 'incremental (forced)':
                 need_backup = 'incremental'
 
-            self.create_backup(need_backup, debugger)
+            self.__create_backup(need_backup, debugger)
         finally:
-            self.post_run()
+            self.__post_run()
 
         return True
 
 
-    def client_is_online(self):
+    def __client_is_online(self):
         # running DAR on localhost -- should be online ... :)
         if self.__backup_client == 'localhost':
             return True
@@ -238,11 +238,11 @@ class RunDar:
                         os.rmdir(root)
 
 
-    def pre_run(self):
-        if self.__pre_run:
-            print 'pre-run command: %s' % self.__pre_run
+    def __pre_run(self):
+        if self.__command_pre_run:
+            print 'pre-run command: %s' % self.__command_pre_run
             proc = subprocess.Popen( \
-                self.__pre_run, shell=True, stdin=subprocess.PIPE, \
+                self.__command_pre_run, shell=True, stdin=subprocess.PIPE, \
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             output = proc.communicate()
@@ -254,11 +254,11 @@ class RunDar:
         self.__remove_empty_directories__()
 
 
-    def post_run(self):
-        if self.__post_run:
-            print 'post-run command: %s' % self.__post_run
+    def __post_run(self):
+        if self.__command_post_run:
+            print 'post-run command: %s' % self.__command_post_run
             proc = subprocess.Popen( \
-                self.__post_run, shell=True, stdin=subprocess.PIPE, \
+                self.__command_post_run, shell=True, stdin=subprocess.PIPE, \
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             output = proc.communicate()
@@ -268,7 +268,7 @@ class RunDar:
                 raise OSError(output[1])
 
 
-    def create_backup(self, backup_type, debugger):
+    def __create_backup(self, backup_type, debugger):
         print
         if backup_type not in self.__backup_prefixes:
             raise ValueError('wrong backup type given ("%s")' % backup_type)
@@ -365,9 +365,9 @@ class RunDar:
                 raise OSError('dar_manager exited with code %d' % retcode)
 
 
-    def need_backup(self, debugger):
+    def __need_backup(self, debugger):
         for backup_type in self.__backup_types:
-            if self.need_backup_type(backup_type, debugger):
+            if self.__need_backup_type(backup_type, debugger):
                 return backup_type
         if self.__force_backup:
             return 'incremental (forced)'
@@ -375,31 +375,33 @@ class RunDar:
             return 'none'
 
 
-    def need_backup_type(self, backup_type, debugger):
-        last_backup = self.last_backup(backup_type, debugger)
+    def __need_backup_type(self, backup_type, debugger):
+        last_backup = self.__last_backup(backup_type, debugger)
         if last_backup < 0:
             return True
         else:
             if (self.__backup_interval[backup_type] <= \
-                    self.last_backup(backup_type, debugger)):
+                    self.__last_backup(backup_type, debugger)):
                 return True
             else:
                 return False
 
 
-    def last_backup(self, backup_type, debugger):
+    def __last_backup(self, backup_type, debugger):
         if backup_type == 'full':
             full = self.__days_since_last_backup('full', debugger)
             return full
         elif backup_type == 'differential':
-            full = self.last_backup('full', debugger)  # recursive call!
+            # recursive call!
+            full = self.__last_backup('full', debugger)
             diff = self.__days_since_last_backup('differential', debugger)
             if (diff < 0) or (full < diff):
                 return full
             else:
                 return diff
         elif backup_type == 'incremental':
-            diff = self.last_backup('differential', debugger)  # recursive call!
+            # recursive call!
+            diff = self.__last_backup('differential', debugger)
             incr = self.__days_since_last_backup('incremental', debugger)
             if (incr < 0) or (diff < incr):
                 return diff
@@ -469,6 +471,6 @@ class RunDar:
 
 
 if __name__ == '__main__':
-    rd = RunDar()
-    #rd.test(31, interval=1.0)
-    rd.run()
+    lalikan = Lalikan()
+    # lalikan.test(31, interval=1.0)
+    lalikan.run()
