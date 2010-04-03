@@ -278,12 +278,14 @@ class Lalikan:
         backup_postfix = self.__backup_postfixes[backup_type]
 
         if backup_type == 'full':
-            reference = 'none'
+            reference_base = 'none'
             reference_option = ''
         elif backup_type == 'differential':
-            reference = self.__name_of_last_backup('full', debugger)
+            reference_base = self.__name_of_last_backup('full', debugger)
+            reference_timestamp = reference_base.rsplit('-', 1)[0]
+            reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + os.path.join( \
-                self.__backup_directory, reference, reference)
+                self.__backup_directory, reference_base, reference_catalog)
         elif backup_type == 'incremental':
             last_full = self.__days_since_last_backup( \
                 'full', debugger)
@@ -308,6 +310,7 @@ class Lalikan:
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + os.path.join( \
                 self.__backup_directory, reference_base, reference_catalog)
+
         if debugger:
             now = debugger['now']
         else:
@@ -324,7 +327,7 @@ class Lalikan:
 
         if debugger:
             debugger['directories'].append(base_name)
-            debugger['references'].append(reference)
+            debugger['references'].append(reference_base)
         else:
             os.mkdir(base_directory)
 
@@ -433,6 +436,16 @@ class Lalikan:
 
             del debugger['directories'][n]
             del debugger['references'][n]
+        else:
+            os.walk(basename, topdown=False)
+            # if (len(directories) < 1) and (len(files) < 1):
+            #     # keep looping to find *all* empty directories
+            #     repeat = True
+            #     print _('removed empty directory "%(directory)s".') % \
+            #         {'directory':root}
+            #     # delete empty directory
+            #     os.rmdir(root)
+
 
 
     def __need_backup(self, debugger):
