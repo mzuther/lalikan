@@ -3,6 +3,7 @@
 
 import datetime
 import gettext
+import glob
 import locale
 import os
 import re
@@ -243,6 +244,8 @@ class Lalikan:
     def __pre_run(self):
         if self.__command_pre_run:
             print 'pre-run command: %s' % self.__command_pre_run
+            # stdin is needed to be able to communicate with the
+            # application (i.e. answer a question)
             proc = subprocess.Popen( \
                 self.__command_pre_run, shell=True, stdin=subprocess.PIPE, \
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -410,8 +413,8 @@ class Lalikan:
 
         # please remember: never delete full backups!
         if backup_type == 'full':
-            print '*** full: removing diff and incr prior to last full'
-            print prior_date
+            print '\nfull: removing diff and incr prior to last full (%s)\n' % \
+                prior_date
             for basename in self.__find_old_backups('incremental', \
                                                         prior_date, debugger):
                 self.__delete_backup(basename, debugger)
@@ -419,17 +422,19 @@ class Lalikan:
                                                         prior_date, debugger):
                 self.__delete_backup(basename, debugger)
         elif backup_type == 'differential':
-            print '*** diff: removing incr prior to last diff'
-            print prior_date
+            print '\ndiff: removing incr prior to last diff (%s)\n' % \
+                prior_date
             for basename in self.__find_old_backups('incremental', \
                                                         prior_date, debugger):
                 self.__delete_backup(basename, debugger)
         elif backup_type == 'incremental':
-            pass
+            return
+
+        self.__remove_empty_directories__()
 
 
     def __delete_backup(self, basename, debugger):
-        print ' * deleting %s' % basename
+        print 'deleting old backup "%s"' % basename
         if debugger:
             n = debugger['directories'].index(basename)
             assert n >= 0
@@ -437,15 +442,44 @@ class Lalikan:
             del debugger['directories'][n]
             del debugger['references'][n]
         else:
-            os.walk(basename, topdown=False)
-            # if (len(directories) < 1) and (len(files) < 1):
-            #     # keep looping to find *all* empty directories
-            #     repeat = True
-            #     print _('removed empty directory "%(directory)s".') % \
-            #         {'directory':root}
-            #     # delete empty directory
-            #     os.rmdir(root)
+            base_directory = os.path.join(self.__backup_directory, basename)
+            for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
+                print '  removing %s...' % backup_file
+                os.unlink(backup_file)
 
+            cmd = 'dar_manager --base %s --list -Q' % self.__backup_database
+            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, \
+                                        stdout=subprocess.PIPE)
+            output = proc.communicate()
+            retcode = proc.wait()
+
+            backup_in_database = False
+            for line in output[0].split('\n'):
+                line = line.strip()
+                if line.endswith(basename):
+                    regex_match = re.search('^([0-9]+)', line)
+                    if regex_match:
+                        backup_in_database = True
+                        backup_number = regex_match.group(0)
+                        print 'updating database (removing backup #%s)' \
+                            % backup_number
+
+                        cmd = 'dar_manager --base %(database)s --delete %(number)s -Q' % \
+                            {'database': self.__backup_database, 'number': \
+                                 backup_number}
+                        proc = subprocess.Popen(cmd, shell=True, \
+                                                    stdin=subprocess.PIPE)
+                        proc.communicate()
+                        retcode = proc.wait()
+
+                        if retcode != 0:
+                            print 'could not update database'
+                        else:
+                            print
+
+
+            if not backup_in_database:
+                print 'database not updated (backup not found)\n' \
 
 
     def __need_backup(self, debugger):
@@ -580,5 +614,5 @@ class Lalikan:
 
 if __name__ == '__main__':
     lalikan = Lalikan()
-    # lalikan.test(60, interval=1.0)
+    # lalikan.test(60, interval=1.0) # DEBUG
     lalikan.run()
