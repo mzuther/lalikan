@@ -161,19 +161,17 @@ class Lalikan:
         try:
             need_backup = self.__need_backup(debugger)
 
-            print 'last full:  %7.3f  (%7.3f)  -->  %s' % \
+            print '\nlast full:  %7.3f  (%7.3f)' % \
                 (self.__last_backup('full', debugger), \
-                     self.__backup_interval['full'], \
-                     self.__need_backup_type('full', debugger))
-            print 'last diff:  %7.3f  (%7.3f)  -->  %s' % \
+                     self.__backup_interval['full'])
+            print 'last diff:  %7.3f  (%7.3f)' % \
                 (self.__last_backup('differential', debugger), \
-                     self.__backup_interval['differential'], \
-                     self.__need_backup_type('differential', debugger))
-            print 'last incr:  %7.3f  (%7.3f)  -->  %s' % \
+                     self.__backup_interval['differential'])
+            print 'last incr:  %7.3f  (%7.3f)\n' % \
                 (self.__last_backup('incremental', debugger), \
-                     self.__backup_interval['incremental'], \
-                     self.__need_backup_type('incremental', debugger))
-            print 'backup:     %s' % need_backup
+                     self.__backup_interval['incremental'])
+
+            print 'backup type:  %s\n' % need_backup
 
             if need_backup == 'none':
                 return False
