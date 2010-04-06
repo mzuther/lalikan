@@ -347,6 +347,9 @@ class Lalikan:
                 # FIXME: delete slices and directory (also in "debugger")
                 raise OSError('dar exited with code %d' % retcode)
 
+            print '%(files)d files, %(size)s\n' % \
+                self.__get_backup_size(base_file)
+
             # isolate catalog
             cmd = 'dar --isolate %(base)s --ref %(reference)s -Q' % \
                 {'base': catalog_file, 'reference': base_file}
@@ -608,6 +611,29 @@ class Lalikan:
                 age.days + age.seconds / 86400.0
 
             return self.__last_backup_days[backup_type]
+
+
+    def __get_backup_size(self, base_file):
+        size = 0
+        files = 0
+
+        for single_file in glob.glob('%s.*.dar' % base_file):
+            if os.path.isfile(single_file) and not os.path.islink(single_file):
+                files += 1
+                size += os.stat(single_file).st_size
+
+        if size > 1e12:
+            filesize = '%s TB' % round(size / 1e12, 1)
+        elif size > 1e9:
+            filesize = '%s GB' % round(size / 1e9, 1)
+        elif size > 1e6:
+            filesize = '%s MB' % round(size / 1e6, 1)
+        elif size > 1e3:
+            filesize = '%s kB' % round(size / 1e3, 1)
+        else:
+            filesize = '%s bytes' % size
+
+        return {'files': files, 'size': filesize}
 
 
 if __name__ == '__main__':
