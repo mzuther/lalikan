@@ -51,7 +51,7 @@ class Settings:
         # common application copyrights and information (only set here, private)
         self.__application__ = 'Lalikan.py'
         self.__cmd_line__ = 'Lalikan'
-        self.__version__ = '0.14'
+        self.__version__ = '0.15'
         self.__years__ = '2010'
         self.__authors__ = 'Martin Zuther'
         self.__license_short__ = 'GPL version 3 (or later)'

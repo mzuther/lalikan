@@ -410,6 +410,7 @@ class Lalikan:
         if len (remove_prior) < 2:
             return
         else:
+            # get date of previous backup of same type
             prior_date = remove_prior[-2]
             prior_date = prior_date[:-len(backup_postfix) - 1]
             prior_date = datetime.datetime.strptime(prior_date, \
@@ -419,15 +420,43 @@ class Lalikan:
         if backup_type == 'full':
             print '\nfull: removing diff and incr prior to last full (%s)\n' % \
                 prior_date
+
             for basename in self.__find_old_backups('incremental', \
                                                         prior_date, debugger):
                 self.__delete_backup(basename, debugger)
             for basename in self.__find_old_backups('differential', \
                                                         prior_date, debugger):
                 self.__delete_backup(basename, debugger)
+
+            # separate check for old differential backups
+            backup_postfix_diff = self.__backup_postfixes['differential']
+            remove_prior_diff = self.__find_old_backups( \
+                'differential', None, debugger)
+
+            if (len (remove_prior) > 1) and (len(remove_prior_diff) > 0):
+                # get date of last full backup
+                last_full_date = remove_prior[-1]
+                last_full_date = last_full_date[:-len(backup_postfix) - 1]
+                last_full_date = datetime.datetime.strptime( \
+                    last_full_date, self.__date_format)
+
+                # get date of last differential backup
+                last_diff_date = remove_prior_diff[-1]
+                last_diff_date = last_diff_date[:-len(backup_postfix_diff) - 1]
+                last_diff_date = datetime.datetime.strptime( \
+                    last_diff_date, self.__date_format)
+
+                print '\nfull: removing incr prior to last diff (%s)\n' % \
+                    last_diff_date
+
+                for basename in self.__find_old_backups( \
+                    'incremental', last_diff_date, debugger):
+                    self.__delete_backup(basename, debugger)
+
         elif backup_type == 'differential':
             print '\ndiff: removing incr prior to last diff (%s)\n' % \
                 prior_date
+
             for basename in self.__find_old_backups('incremental', \
                                                         prior_date, debugger):
                 self.__delete_backup(basename, debugger)
