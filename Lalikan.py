@@ -161,15 +161,15 @@ class Lalikan:
         try:
             need_backup = self.__need_backup(debugger)
 
-            print '\nnext full:  %7.3f  (%7.3f)' % \
+            print '\nnext full in  %7.3f days  (%7.3f)' % \
                 (self.__backup_interval['full'] - \
                      self.__last_backup('full', debugger), \
                      self.__backup_interval['full'])
-            print 'next diff:  %7.3f  (%7.3f)' % \
+            print 'next diff in  %7.3f days  (%7.3f)' % \
                 (self.__backup_interval['differential'] - \
                      self.__last_backup('differential', debugger), \
                      self.__backup_interval['differential'])
-            print 'next incr:  %7.3f  (%7.3f)\n' % \
+            print 'next incr in  %7.3f days  (%7.3f)\n' % \
                 (self.__backup_interval['incremental'] - \
                      self.__last_backup('incremental', debugger), \
                      self.__backup_interval['incremental'])
