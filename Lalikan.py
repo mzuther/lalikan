@@ -161,14 +161,17 @@ class Lalikan:
         try:
             need_backup = self.__need_backup(debugger)
 
-            print '\nlast full:  %7.3f  (%7.3f)' % \
-                (self.__last_backup('full', debugger), \
+            print '\nnext full:  %7.3f  (%7.3f)' % \
+                (self.__backup_interval['full'] - \
+                     self.__last_backup('full', debugger), \
                      self.__backup_interval['full'])
-            print 'last diff:  %7.3f  (%7.3f)' % \
-                (self.__last_backup('differential', debugger), \
+            print 'next diff:  %7.3f  (%7.3f)' % \
+                (self.__backup_interval['differential'] - \
+                     self.__last_backup('differential', debugger), \
                      self.__backup_interval['differential'])
-            print 'last incr:  %7.3f  (%7.3f)\n' % \
-                (self.__last_backup('incremental', debugger), \
+            print 'next incr:  %7.3f  (%7.3f)\n' % \
+                (self.__backup_interval['incremental'] - \
+                     self.__last_backup('incremental', debugger), \
                      self.__backup_interval['incremental'])
 
             print 'backup type:  %s\n' % need_backup
@@ -233,7 +236,7 @@ class Lalikan:
                     if (len(directories) < 1) and (len(files) < 1):
                         # keep looping to find *all* empty directories
                         repeat = True
-                        print _('removed empty directory "%(directory)s".') % \
+                        print _('removing empty directory "%(directory)s"') % \
                             {'directory':root}
                         # delete empty directory
                         os.rmdir(root)
@@ -347,7 +350,7 @@ class Lalikan:
                 # FIXME: delete slices and directory (also in "debugger")
                 raise OSError('dar exited with code %d' % retcode)
 
-            print '%(files)d files, %(size)s\n' % \
+            print '%(files)d file(s), %(size)s\n' % \
                 self.__get_backup_size(base_file)
 
             # isolate catalog
@@ -445,7 +448,6 @@ class Lalikan:
         else:
             base_directory = os.path.join(self.__backup_directory, basename)
             for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
-                print '  removing %s...' % backup_file
                 os.unlink(backup_file)
 
             cmd = 'dar_manager --base %s --list -Q' % self.__backup_database
