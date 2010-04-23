@@ -159,6 +159,13 @@ Thank you for using free software!"""
         """
         sections = self.__settings__.sections()
         sections.sort()
+
+        # move section 'default' to the top so that the default backup
+        # will be run first
+        if 'default' in  sections:
+            item = sections.pop(sections.index('default'))
+            sections.insert(0, item)
+
         return sections
 
 
