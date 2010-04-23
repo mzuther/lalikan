@@ -42,7 +42,7 @@ class Lalikan:
                               action='store', \
                               dest='section', \
                               metavar='SECTION', \
-                              default='default', \
+                              default=None, \
                               help=_('run SECTION from configuration file'))
         parser.add_option('--force', \
                               action='store_true', \
@@ -53,46 +53,51 @@ class Lalikan:
         # parse command line
         (options, args) = parser.parse_args()
 
+        print settings.get_description(False)
+
         self.__section = options.section
         self.__force_backup = options.force_backup
 
-        print settings.get_description(False)
-        self.__initialise()
+        if (self.__section not in settings.sections()) and \
+                (type(self.__section) != types.NoneType):
+            print 'The specified section \'%s\' has not been defined.  Please use one of these:\n' % \
+                options.section
+
+            for section in settings.sections():
+                print ' * %s' % section
+
+            print
+            exit(1)
 
 
-    def __initialise(self):
-        self.__backup_client = settings.get( \
-            self.__section, 'backup_client', False)
+    def __initialise(self, section):
+        print 'selected backup \'%s\'\n' % section
+
+        self.__backup_client = settings.get(section, 'backup_client', False)
         # port only required for client backup
         self.__backup_client_port = settings.get( \
-            self.__section, 'backup_client_port', \
-                self.__backup_client == 'localhost')
+            section, 'backup_client_port', self.__backup_client == 'localhost')
 
         self.__backup_directory = settings.get( \
-            self.__section, 'backup_directory', False)
-        self.__backup_database = settings.get( \
-            self.__section, 'backup_database', True)
+            section, 'backup_directory', False)
+        self.__backup_database = settings.get(section, 'backup_database', True)
 
         self.__backup_interval = { \
             'full': float(settings.get( \
-                self.__section, 'backup_interval_full', False)), \
+                section, 'backup_interval_full', False)), \
             'differential': float(settings.get( \
-                self.__section, 'backup_interval_differential', False)), \
+                section, 'backup_interval_differential', False)), \
             'incremental': float(settings.get( \
-                self.__section, 'backup_interval_incremental', False))}
+                section, 'backup_interval_incremental', False))}
 
-        self.__backup_options = settings.get( \
-            self.__section, 'backup_options', True)
+        self.__backup_options = settings.get(section, 'backup_options', True)
 
-        self.__date_format = settings.get( \
-            self.__section, 'date_format', False)
-        self.__date_regex = settings.get( \
-            self.__section, 'date_regex', False)
+        self.__date_format = settings.get(section, 'date_format', False)
+        self.__date_regex = settings.get(section, 'date_regex', False)
 
-        self.__command_pre_run = settings.get( \
-            self.__section, 'command_pre_run', True)
+        self.__command_pre_run = settings.get(section, 'command_pre_run', True)
         self.__command_post_run = settings.get( \
-            self.__section, 'command_post_run', True)
+            section, 'command_post_run', True)
 
         self.__backup_types = ('full', 'differential', 'incremental')
         self.__backup_postfixes = {'full': 'full', 'differential': 'diff', \
@@ -112,9 +117,6 @@ class Lalikan:
             if current_day > 0.0:
                 debugger['now'] += datetime.timedelta(interval)
             current_day += interval
-
-            self.__initialise()
-            self.__backup_client = 'localhost'
 
             created_backup = self.run(debugger)
 
@@ -145,6 +147,20 @@ class Lalikan:
 
 
     def run(self, debugger=None):
+        if debugger:
+            self.__run(settings.sections()[0], debugger)
+        elif type(self.__section) == types.NoneType:
+            for section in settings.sections():
+                self.__run(section, debugger)
+        elif self.__section in settings.sections():
+            self.__run(self.__section, debugger)
+        else:
+            exit(1)
+
+
+    def __run(self, section, debugger=None):
+        self.__initialise(section)
+
         if not debugger:
             # check whether the script runs with superuser rights
             if (os.getuid() != 0) or (os.getgid() != 0):
@@ -155,7 +171,9 @@ class Lalikan:
         if not self.__client_is_online():
             return False
 
-        if not debugger:
+        if debugger:
+            self.__backup_client = 'localhost'
+        else:
             self.__pre_run()
 
         try:
@@ -669,5 +687,5 @@ class Lalikan:
 
 if __name__ == '__main__':
     lalikan = Lalikan()
-    # lalikan.test(60, interval=1.0) # DEBUG
+#    lalikan.test(60, interval=1.0) # DEBUG
     lalikan.run()
