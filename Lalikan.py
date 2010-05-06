@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.5
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 import datetime
@@ -7,7 +7,9 @@ import glob
 import locale
 import os
 import re
+import socket
 import subprocess
+import time
 import types
 
 from optparse import OptionParser
@@ -230,17 +232,28 @@ class Lalikan:
         if self.__backup_client == 'localhost':
             return True
 
-        cmd = ['nc', '-v', '-z', self.__backup_client, \
-                   self.__backup_client_port]
+        # check port availability up to three times
         for n in range(3):
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, \
-                                        stderr=subprocess.PIPE)
-            output = proc.communicate()
-            was_successful = output[0].strip().endswith(' succeeded!')
-            error_string = (len(output[1]) > 0)
-            if was_successful and not error_string:
-                return True
+            # wait 10 seconds between checks
+            if n > 0:
+                time.sleep(10.0)
 
+            # initialise socket and time-out
+            port = socket.socket()
+            port.settimeout(2.0)
+
+            try:
+                # check port
+                port.connect((self.__backup_client, \
+                                  int(self.__backup_client_port)))
+
+                # client is online
+                return True
+            except Exception, e:
+                # an error occurred
+                print e
+
+        # no connection to client possible
         print 'Host "%(host)s" does not listen on port %(port)s.' % \
             {'host': self.__backup_client, 'port': self.__backup_client_port}
         return False
