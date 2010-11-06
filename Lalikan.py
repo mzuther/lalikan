@@ -328,6 +328,10 @@ class Lalikan:
             if output[1]:
                 raise OSError(output[1])
 
+        # recursively create root directory if it doesn't exist
+        if not os.path.exists(self.__backup_directory):
+            os.makedirs(self.__backup_directory)
+
         self.__remove_empty_directories__()
 
 
