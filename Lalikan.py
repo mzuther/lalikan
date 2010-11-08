@@ -421,7 +421,9 @@ class Lalikan:
             retcode = proc.wait()
             print
 
-            if retcode > 0:
+            if retcode == 11:
+                print 'WARNING: some files were changed during backup'
+            elif retcode > 0:
                 # FIXME: maybe catch exceptions
                 # FIXME: delete slices and directory (also in "debugger")
                 raise OSError('dar exited with code %d' % retcode)
