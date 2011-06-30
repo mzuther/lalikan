@@ -72,7 +72,14 @@ Thank you for using free software!"""
         self.__description__ = _('Backup scheduler for Disk ARchive (DAR)')
 
         # set INI file path
-        self.__config_file_path__ = os.path.expanduser('/etc/lalikan')
+        if os.name == 'posix':
+            self.__config_file_path__ = os.path.expanduser('/etc/lalikan')
+        elif os.name == 'nt':
+            # for the lack of a good place, look for the configuration
+            # file in the application's directory
+            self.__config_file_path__ = os.path.expanduser('lalikan.conf')
+        else:
+            assert(False)
 
         # if INI file doesn't exist or cannot be read, ...
         if not os.access(self.__config_file_path__, os.F_OK | os.R_OK):
