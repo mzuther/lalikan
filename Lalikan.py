@@ -367,8 +367,8 @@ class Lalikan:
             reference_base = self.__name_of_last_backup('full', debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
-            reference_option = '--ref ' + os.path.join( \
-                self.__backup_directory, reference_base, reference_catalog)
+            reference_option = '--ref ' + self._sanitise_path(os.path.join( \
+                self.__backup_directory, reference_base, reference_catalog))
         elif backup_type == 'incremental':
             last_full = self.__days_since_last_backup( \
                 'full', debugger)
@@ -391,8 +391,8 @@ class Lalikan:
             reference_base = self.__name_of_last_backup(newest_backup, debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
-            reference_option = '--ref ' + os.path.join( \
-                self.__backup_directory, reference_base, reference_catalog)
+            reference_option = '--ref ' + self._sanitise_path(os.path.join( \
+                self.__backup_directory, reference_base, reference_catalog))
 
         if debugger:
             now = debugger['now']
@@ -417,7 +417,7 @@ class Lalikan:
             cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
                 {'dar': self.__path_to_dar, \
                  'base': self._sanitise_path(base_file), \
-                 'reference': self._sanitise_path(reference_option), \
+                 'reference': reference_option, \
                  'options': self.__backup_options}
 
             print 'creating backup: %s\n' % cmd
