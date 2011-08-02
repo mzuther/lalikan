@@ -437,10 +437,11 @@ class Lalikan:
                 self.__get_backup_size(base_file)
 
             # isolate catalog
-            cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q' % \
+            cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
                 {'dar': self.__path_to_dar, \
                  'base': self._sanitise_path(catalog_file), \
-                 'reference': self._sanitise_path(base_file)}
+                 'reference': self._sanitise_path(base_file), \
+                 'options': self.__backup_options}
 
             print 'isolating catalog: %s\n' % cmd
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
