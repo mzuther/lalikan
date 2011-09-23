@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """Lalikan
@@ -49,6 +50,11 @@ _ = gettext.lgettext
 
 
 class Lalikan:
+    _INFORMATION = 'information'
+    _WARNING = 'warning'
+    _ERROR = 'error'
+    _FINAL_ERROR = 'error'
+
     def __init__(self):
         # initialise version information, ...
         version_long = _('%(description)s\n%(copyrights)s\n\n%(license)s') % \
@@ -191,8 +197,8 @@ class Lalikan:
                     print e
 
                     if error:
-                        print '\nat least one error has occurred.'
-                        exit(1)
+                        self._notify_user('At least one error has occurred!', \
+                                              self._FINAL_ERROR)
         elif self.__section in settings.sections():
             try:
                 self.__run(self.__section, debugger)
@@ -219,8 +225,9 @@ class Lalikan:
         if debugger:
             self.__backup_client = 'localhost'
         else:
-            self.__pre_run()
+            self.__pre_run(section)
 
+        need_backup = 'none'
         try:
             need_backup = self.__need_backup(debugger)
 
@@ -244,10 +251,13 @@ class Lalikan:
             elif need_backup == 'incremental (forced)':
                 need_backup = 'incremental'
 
+            self._notify_user('Starting %s backup...' % need_backup, \
+                                  self._INFORMATION)
+
             self.__create_backup(need_backup, debugger)
         finally:
             if not debugger:
-                self.__post_run()
+                self.__post_run(section, need_backup)
 
         return True
 
@@ -316,7 +326,7 @@ class Lalikan:
                         os.rmdir(root)
 
 
-    def __pre_run(self):
+    def __pre_run(self, section):
         if self.__command_pre_run:
             print 'pre-run command: %s' % self.__command_pre_run
             # stdin is needed to be able to communicate with the
@@ -327,9 +337,9 @@ class Lalikan:
 
             output = proc.communicate()
             if output[0]:
-                print output[0]
+                self._notify_user(output[0], self._INFORMATION)
             if output[1]:
-                raise OSError(output[1])
+                self._notify_user(output[1], self._ERROR)
 
         # recursively create root directory if it doesn't exist
         if not os.path.exists(self.__backup_directory):
@@ -338,7 +348,7 @@ class Lalikan:
         self.__remove_empty_directories__()
 
 
-    def __post_run(self):
+    def __post_run(self, section, need_backup):
         if self.__command_post_run:
             print 'post-run command: %s' % self.__command_post_run
             proc = subprocess.Popen( \
@@ -347,9 +357,13 @@ class Lalikan:
 
             output = proc.communicate()
             if output[0]:
-                print output[0]
+                self._notify_user(output[0], self._INFORMATION)
             if output[1]:
-                raise OSError(output[1])
+                self._notify_user(output[1], self._ERROR)
+
+        if need_backup != 'none':
+            self._notify_user('Finished backup.', self._INFORMATION)
+
         print '---'
 
 
@@ -427,14 +441,17 @@ class Lalikan:
             print
 
             if retcode == 11:
-                print 'WARNING: some files were changed during backup'
+                self._notify_user('Some files were changed during backup', \
+                                      self._WARNING)
             elif retcode > 0:
                 # FIXME: maybe catch exceptions
                 # FIXME: delete slices and directory (also in "debugger")
-                raise OSError('dar exited with code %d' % retcode)
+                self._notify_user('dar exited with code %d' % retcode, \
+                                      self._ERROR)
 
-            print '%(files)d file(s), %(size)s\n' % \
-                self.__get_backup_size(base_file)
+            self._notify_user('%(files)d file(s), %(size)s\n' % \
+                                  self.__get_backup_size(base_file), \
+                                  self._INFORMATION)
 
             # isolate catalog
             cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
@@ -487,7 +504,8 @@ class Lalikan:
 
             if retcode > 0:
                 # FIXME: maybe catch exceptions
-                raise OSError('dar_manager exited with code %d' % retcode)
+                self._notify_user('dar_manager exited with code %d' % retcode, \
+                                      self._ERROR)
 
 
     def __delete_old_backups(self, backup_type, debugger):
@@ -775,6 +793,40 @@ class Lalikan:
             return new_path
         else:
             return new_path
+
+
+    def _notify_user(self, message, urgency):
+        assert(urgency in (self._INFORMATION, self._WARNING, self._ERROR, \
+                               self._FINAL_ERROR))
+
+        if urgency == self._INFORMATION:
+            # expire informational messages after 30 seconds
+            expiration = 30
+        else:
+            # do not expire warnings and errors
+            expiration = 0
+
+        if os.name == 'posix':
+            cmd = "notify-send -t %(expiration)d -u %(urgency)s -i %(icon)s '%(summary)s' '%(message)s'" % \
+                {'expiration': expiration * 1000, \
+                 'urgency': 'normal', \
+                 'icon': 'dialog-%s' % urgency, \
+                 'summary': 'Lalikan (%s)' % self.__section, \
+                 'message': message}
+
+            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
+            proc.communicate()
+            retcode = proc.wait()
+
+        if urgency == self._ERROR:
+            raise OSError(message)
+        if urgency == self._FINAL_ERROR:
+            print message
+            exit(1)
+        elif urgency == self._WARNING:
+            print 'WARNING: %s' % message
+        else:
+            print '%s' % message
 
 
 if __name__ == '__main__':
