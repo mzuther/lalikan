@@ -187,11 +187,11 @@ class Lalikan:
                 print e
                 exit(1)
         elif type(self.__section) == types.NoneType:
-            for section in settings.sections():
+            for self.__section in settings.sections():
                 error = False
 
                 try:
-                    self.__run(section, debugger)
+                    self.__run(self.__section, debugger)
                 except OSError, e:
                     error = True
                     print e
