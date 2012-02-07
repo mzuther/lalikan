@@ -198,7 +198,7 @@ class Lalikan:
 
                     if error:
                         self._notify_user('At least one error has occurred!', \
-                                              self._FINAL_ERROR)
+                                              self._FINAL_ERROR, debugger)
         elif self.__section in settings.sections():
             try:
                 self.__run(self.__section, debugger)
@@ -225,7 +225,7 @@ class Lalikan:
         if debugger:
             self.__backup_client = 'localhost'
         else:
-            self.__pre_run(section)
+            self.__pre_run(section, debugger)
 
         need_backup = 'none'
         try:
@@ -252,12 +252,12 @@ class Lalikan:
                 need_backup = 'incremental'
 
             self._notify_user('Starting %s backup...' % need_backup, \
-                                  self._INFORMATION)
+                                  self._INFORMATION, debugger)
 
             self.__create_backup(need_backup, debugger)
         finally:
             if not debugger:
-                self.__post_run(section, need_backup)
+                self.__post_run(section, need_backup, debugger)
 
         return True
 
@@ -326,7 +326,7 @@ class Lalikan:
                         os.rmdir(root)
 
 
-    def __pre_run(self, section):
+    def __pre_run(self, section, debugger=None):
         if self.__command_pre_run:
             print 'pre-run command: %s' % self.__command_pre_run
             # stdin is needed to be able to communicate with the
@@ -337,9 +337,9 @@ class Lalikan:
 
             output = proc.communicate()
             if output[0]:
-                self._notify_user(output[0], self._INFORMATION)
+                self._notify_user(output[0], self._INFORMATION, debugger)
             if output[1]:
-                self._notify_user(output[1], self._ERROR)
+                self._notify_user(output[1], self._ERROR, debugger)
 
         # recursively create root directory if it doesn't exist
         if not os.path.exists(self.__backup_directory):
@@ -348,7 +348,7 @@ class Lalikan:
         self.__remove_empty_directories__()
 
 
-    def __post_run(self, section, need_backup):
+    def __post_run(self, section, need_backup, debugger=None):
         if self.__command_post_run:
             print 'post-run command: %s' % self.__command_post_run
             proc = subprocess.Popen( \
@@ -357,12 +357,12 @@ class Lalikan:
 
             output = proc.communicate()
             if output[0]:
-                self._notify_user(output[0], self._INFORMATION)
+                self._notify_user(output[0], self._INFORMATION, debugger)
             if output[1]:
-                self._notify_user(output[1], self._ERROR)
+                self._notify_user(output[1], self._ERROR, debugger)
 
         if need_backup != 'none':
-            self._notify_user('Finished backup.', self._INFORMATION)
+            self._notify_user('Finished backup.', self._INFORMATION, debugger)
 
         print '---'
 
@@ -442,16 +442,16 @@ class Lalikan:
 
             if retcode == 11:
                 self._notify_user('Some files were changed during backup', \
-                                      self._WARNING)
+                                      self._WARNING, debugger)
             elif retcode > 0:
                 # FIXME: maybe catch exceptions
                 # FIXME: delete slices and directory (also in "debugger")
                 self._notify_user('dar exited with code %d' % retcode, \
-                                      self._ERROR)
+                                      self._ERROR, debugger)
 
             self._notify_user('%(files)d file(s), %(size)s\n' % \
                                   self.__get_backup_size(base_file), \
-                                  self._INFORMATION)
+                                  self._INFORMATION, debugger)
 
             # isolate catalog
             cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
@@ -505,7 +505,7 @@ class Lalikan:
             if retcode > 0:
                 # FIXME: maybe catch exceptions
                 self._notify_user('dar_manager exited with code %d' % retcode, \
-                                      self._ERROR)
+                                      self._ERROR, debugger)
 
 
     def __delete_old_backups(self, backup_type, debugger):
@@ -795,7 +795,7 @@ class Lalikan:
             return new_path
 
 
-    def _notify_user(self, message, urgency):
+    def _notify_user(self, message, urgency, debugger):
         assert(urgency in (self._INFORMATION, self._WARNING, self._ERROR, \
                                self._FINAL_ERROR))
 
@@ -806,7 +806,7 @@ class Lalikan:
             # do not expire warnings and errors
             expiration = 0
 
-        if os.name == 'posix':
+        if (os.name == 'posix') and not debugger:
             cmd = "notify-send -t %(expiration)d -u %(urgency)s -i %(icon)s '%(summary)s' '%(message)s'" % \
                 {'expiration': expiration * 1000, \
                  'urgency': 'normal', \
