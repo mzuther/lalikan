@@ -28,6 +28,7 @@ import datetime
 import gettext
 import glob
 import locale
+import math
 import os
 import re
 import socket
@@ -141,6 +142,10 @@ class Lalikan:
 
         self.__date_format = settings.get(section, 'date_format', False)
         self.__date_regex = settings.get(section, 'date_regex', False)
+
+        self.__backup_start_time = datetime.datetime.strptime( \
+            settings.get(section, 'backup_start_time', False), \
+                self.__date_format)
 
         self.__command_pre_run = settings.get(section, 'command_pre_run', True)
         self.__command_post_run = settings.get( \
@@ -645,48 +650,42 @@ class Lalikan:
 
     def __need_backup(self, debugger):
         for backup_type in self.__backup_types:
-            if self.__need_backup_type(backup_type, debugger):
+            if self.__last_backup(backup_type, debugger) < 0:
                 return backup_type
+
         if self.__force_backup:
             return 'incremental (forced)'
         else:
             return 'none'
 
 
-    def __need_backup_type(self, backup_type, debugger):
-        last_backup = self.__last_backup(backup_type, debugger)
-        if last_backup < 0:
-            return True
-        else:
-            if (self.__backup_interval[backup_type] <= \
-                    self.__last_backup(backup_type, debugger)):
-                return True
-            else:
-                return False
-
-
     def __last_backup(self, backup_type, debugger):
-        if backup_type == 'full':
-            full = self.__days_since_last_backup('full', debugger)
-            return full
-        elif backup_type == 'differential':
-            # recursive call!
-            full = self.__last_backup('full', debugger)
-            diff = self.__days_since_last_backup('differential', debugger)
-            if (diff < 0) or (full < diff):
-                return full
-            else:
-                return diff
-        elif backup_type == 'incremental':
-            # recursive call!
-            diff = self.__last_backup('differential', debugger)
-            incr = self.__days_since_last_backup('incremental', debugger)
-            if (incr < 0) or (diff < incr):
-                return diff
-            else:
-                return incr
-        else:
+        if backup_type not in self.__backup_postfixes:
             raise ValueError('wrong backup type given ("%s")' % backup_type)
+
+        backup_last = self.__days_since_last_backup(backup_type, debugger)
+        backup_due = self.__days_since_backup_due_date(backup_type, debugger)
+
+        if backup_type == 'differential':
+            backup_interval = self.__backup_interval['differential']
+            backup_due_full = self.__days_since_backup_due_date( \
+                'full', debugger)
+
+            # differential backups should pause for one backup
+            # interval after a full backup is due
+            if (backup_last < 0) or (backup_due_full < backup_interval):
+                backup_due = backup_due_full - backup_interval
+
+        # skip backup
+        if backup_due < 0:
+            return 1
+        # no previous backup found, so mark it as due
+        elif backup_last < 0:
+            return -1
+        # mark backup as due when last backup is older than its
+        # scheduled date
+        else:
+            return backup_due - backup_last
 
 
     def __find_old_backups(self, backup_type, prior_date, debugger):
@@ -771,6 +770,31 @@ class Lalikan:
                 age.days + age.seconds / 86400.0
 
             return self.__last_backup_days[backup_type]
+
+
+    def __days_since_backup_due_date(self, backup_type, debugger):
+        if backup_type in self.__backup_postfixes:
+            backup_postfix = self.__backup_postfixes[backup_type]
+        else:
+            raise ValueError('wrong backup type given ("%s")' % backup_type)
+
+        if backup_type == 'full':
+            if debugger:
+                now = debugger['now']
+            else:
+                now = datetime.datetime.utcnow()
+
+            time_passed = now - self.__backup_start_time
+            days_passed = time_passed.days + time_passed.seconds / 86400.0
+        else:
+            days_passed = self.__days_since_backup_due_date('full', debugger)
+
+        # backup start date lies in the future
+        if days_passed < 0:
+            return days_passed
+
+        days_since_due_date = days_passed % self.__backup_interval[backup_type]
+        return days_since_due_date
 
 
     def __get_backup_size(self, base_file):
