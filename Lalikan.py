@@ -182,7 +182,10 @@ class Lalikan:
     def run(self, debugger=None):
         if debugger:
             try:
-                self.__run(settings.sections()[0], debugger)
+                if type(self.__section) == types.NoneType:
+                    self.__run(settings.sections()[0], debugger)
+                else:
+                    self.__run(self.__section, debugger)
             except OSError, e:
                 print e
                 exit(1)
