@@ -68,6 +68,11 @@ class Lalikan:
         parser = OptionParser(usage=usage, version=version_long)
 
         # add command line options
+        parser.add_option('-l', '--list', \
+                              action='store_true', \
+                              dest='list_sections', \
+                              default=False, \
+                              help=_('list all sections defined in the configuration file'))
         parser.add_option('-s', '--section', \
                               action='store', \
                               dest='section', \
@@ -87,6 +92,15 @@ class Lalikan:
 
         self.__section = options.section
         self.__force_backup = options.force_backup
+
+        if options.list_sections:
+            print 'The following sections have been defined in the configuration file:\n'
+
+            for section in settings.sections():
+                print ' * %s' % section
+
+            print
+            exit(0)
 
         if (self.__section not in settings.sections()) and \
                 (type(self.__section) != types.NoneType):
