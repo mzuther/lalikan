@@ -28,7 +28,6 @@ import datetime
 import gettext
 import glob
 import locale
-import math
 import os
 import re
 import socket
@@ -116,7 +115,7 @@ class Lalikan:
 
 
     def __initialise(self, section):
-        print 'selected backup \'%s\'\n' % section
+        print 'selected backup \'%s\'' % section
 
         self.__backup_client = settings.get(section, 'backup_client', False)
         # port only required for client backup
@@ -254,16 +253,14 @@ class Lalikan:
             need_backup = self.__need_backup(debugger)
 
             print '\nnext full in  %7.3f days  (%7.3f)' % \
-                (self.__backup_interval['full'] - \
-                     self.__last_backup('full', debugger), \
+                (self.__days_to_next_backup_due_date('full', debugger), \
                      self.__backup_interval['full'])
             print 'next diff in  %7.3f days  (%7.3f)' % \
-                (self.__backup_interval['differential'] - \
-                     self.__last_backup('differential', debugger), \
+                (self.__days_to_next_backup_due_date( \
+                    'differential', debugger), \
                      self.__backup_interval['differential'])
             print 'next incr in  %7.3f days  (%7.3f)\n' % \
-                (self.__backup_interval['incremental'] - \
-                     self.__last_backup('incremental', debugger), \
+                (self.__days_to_next_backup_due_date('incremental', debugger), \
                      self.__backup_interval['incremental'])
 
             print 'backup type:  %s\n' % need_backup
@@ -795,6 +792,19 @@ class Lalikan:
 
         days_since_due_date = days_passed % self.__backup_interval[backup_type]
         return days_since_due_date
+
+
+    def __days_to_next_backup_due_date(self, backup_type, debugger):
+        if backup_type not in self.__backup_postfixes:
+            raise ValueError('wrong backup type given ("%s")' % backup_type)
+
+        remaining_days = -self.__days_since_backup_due_date( \
+            backup_type, debugger)
+
+        if remaining_days < 0:
+            remaining_days += self.__backup_interval[backup_type]
+
+        return remaining_days
 
 
     def __get_backup_size(self, base_file):
