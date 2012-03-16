@@ -36,8 +36,9 @@ import time
 import types
 
 from optparse import OptionParser
-from Settings import *
 
+import BackupDatabase
+from Settings import *
 
 # set standard localisation for application
 locale.setlocale(locale.LC_ALL, '')
@@ -114,51 +115,6 @@ class Lalikan:
             exit(1)
 
 
-    def __initialise(self, section):
-        print 'selected backup \'%s\'' % section
-
-        self.__backup_client = settings.get(section, 'backup_client', False)
-        # port only required for client backup
-        self.__backup_client_port = settings.get( \
-            section, 'backup_client_port', self.__backup_client == 'localhost')
-
-        self.__backup_directory = settings.get( \
-            section, 'backup_directory', False)
-        self.__backup_database = settings.get(section, 'backup_database', True)
-
-        self.__backup_interval = { \
-            'full': float(settings.get( \
-                section, 'backup_interval_full', False)), \
-            'differential': float(settings.get( \
-                section, 'backup_interval_differential', False)), \
-            'incremental': float(settings.get( \
-                section, 'backup_interval_incremental', False))}
-
-        self.__backup_options = settings.get(section, 'backup_options', True)
-        self.__path_to_dar = settings.get(section, 'path_to_dar', True)
-        self.__path_to_dar_manager = settings.get( \
-             section, 'path_to_dar_manager', True)
-
-        self.__date_format = settings.get(section, 'date_format', False)
-        self.__date_regex = settings.get(section, 'date_regex', False)
-
-        self.__backup_start_time = datetime.datetime.strptime( \
-            settings.get(section, 'backup_start_time', False), \
-                self.__date_format)
-
-        self.__command_pre_run = settings.get(section, 'command_pre_run', True)
-        self.__command_post_run = settings.get( \
-            section, 'command_post_run', True)
-
-        self.__backup_types = ('full', 'differential', 'incremental')
-        self.__backup_postfixes = {'full': 'full', 'differential': 'diff', \
-                                      'incremental': 'incr'}
-        self.__last_backup_days = {'full': None, 'differential': None, \
-                                       'incremental': None}
-        self.__last_backup_file = {'full': None, 'differential': None, \
-                                       'incremental': None}
-
-
     def test(self, number_of_days, interval=1.0):
         current_day = 0.0
         debugger = {'directories': [], 'references': [], \
@@ -174,23 +130,24 @@ class Lalikan:
             if not created_backup:
                 print
             print '----- %s ------' % debugger['now'].strftime( \
-                self.__date_format)
+                self.__database.get_date_format())
             if created_backup:
                 for n in range(len(debugger['directories'])):
                     directory = debugger['directories'][n]
                     reference = debugger['references'][n]
 
                     if reference.endswith( \
-                            self.__backup_postfixes['differential']):
+                            self.__database.get_backup_postfix('differential')):
                         reference = '    %s' % reference
                     elif reference.endswith( \
-                            self.__backup_postfixes['incremental']):
+                            self.__database.get_backup_postfix('incremental')):
                         reference = '        %s' % reference
 
-                    if directory.endswith(self.__backup_postfixes['full']):
+                    if directory.endswith( \
+                        self.__database.get_backup_postfix('full')):
                         print '%s            %s' % (directory, reference)
                     elif directory.endswith( \
-                            self.__backup_postfixes['differential']):
+                            self.__database.get_backup_postfix('differential')):
                         print '    %s        %s' % (directory, reference)
                     else:
                         print '        %s    %s' % (directory, reference)
@@ -231,7 +188,8 @@ class Lalikan:
 
 
     def __run(self, section, debugger=None):
-        self.__initialise(section)
+        self.__database = BackupDatabase.BackupDatabase( \
+            section, settings, debugger)
 
         if not debugger and os.name == 'posix':
             # check whether the script runs with superuser rights
@@ -243,25 +201,26 @@ class Lalikan:
         if not self.__client_is_online():
             return False
 
-        if debugger:
-            self.__backup_client = 'localhost'
-        else:
+        if not debugger:
             self.__pre_run(section, debugger)
 
         need_backup = 'none'
         try:
-            need_backup = self.__need_backup(debugger)
+            need_backup = self.__database.need_backup( \
+                self.__force_backup, debugger)
 
             print '\nnext full in  %7.3f days  (%7.3f)' % \
-                (self.__days_to_next_backup_due_date('full', debugger), \
-                     self.__backup_interval['full'])
+                (self.__database.days_to_next_backup_due_date( \
+                    'full', debugger), \
+                     self.__database.get_backup_interval('full'))
             print 'next diff in  %7.3f days  (%7.3f)' % \
-                (self.__days_to_next_backup_due_date( \
+                (self.__database.days_to_next_backup_due_date( \
                     'differential', debugger), \
-                     self.__backup_interval['differential'])
+                     self.__database.get_backup_interval('differential'))
             print 'next incr in  %7.3f days  (%7.3f)\n' % \
-                (self.__days_to_next_backup_due_date('incremental', debugger), \
-                     self.__backup_interval['incremental'])
+                (self.__database.days_to_next_backup_due_date( \
+                    'incremental', debugger), \
+                     self.__database.get_backup_interval('incremental'))
 
             print 'backup type:  %s\n' % need_backup
 
@@ -283,7 +242,7 @@ class Lalikan:
 
     def __client_is_online(self):
         # running DAR on localhost -- should be online ... :)
-        if self.__backup_client == 'localhost':
+        if self.__database.get_backup_client() == 'localhost':
             return True
 
         # check port availability up to three times
@@ -298,8 +257,9 @@ class Lalikan:
 
             try:
                 # check port
-                port.connect((self.__backup_client, \
-                                  int(self.__backup_client_port)))
+                port.connect(( \
+                        self.__database.get_backup_client(), \
+                            int(self.__database.get_backup_client_port())))
 
                 # client is online
                 return True
@@ -309,7 +269,8 @@ class Lalikan:
 
         # no connection to client possible
         print 'Host "%(host)s" does not listen on port %(port)s.' % \
-            {'host': self.__backup_client, 'port': self.__backup_client_port}
+            {'host': self.__database.get_backup_client(), \
+                 'port': self.__database.get_backup_client_port()}
         return False
 
 
@@ -332,9 +293,10 @@ class Lalikan:
 
             # find empty directories
             for root, directories, files in \
-                    os.walk(self.__backup_directory, topdown=False):
+                    os.walk(self.__database.get_backup_directory(), \
+                                topdown=False):
                # do not remove root directory
-                if root != self.__backup_directory:
+                if root != self.__database.get_backup_directory():
                     # directory is empty
                     if (len(directories) < 1) and (len(files) < 1):
                         # keep looping to find *all* empty directories
@@ -346,13 +308,14 @@ class Lalikan:
 
 
     def __pre_run(self, section, debugger=None):
-        if self.__command_pre_run:
-            print 'pre-run command: %s' % self.__command_pre_run
+        if self.__database.get_pre_run_command():
+            print 'pre-run command: %s' % self.__database.get_pre_run_command()
             # stdin is needed to be able to communicate with the
             # application (i.e. answer a question)
             proc = subprocess.Popen( \
-                self.__command_pre_run, shell=True, stdin=subprocess.PIPE, \
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                self.__database.get_pre_run_command(), shell=True, \
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, \
+                    stderr=subprocess.PIPE)
 
             output = proc.communicate()
             if output[0]:
@@ -361,18 +324,20 @@ class Lalikan:
                 self.__notify_user(output[1], self._ERROR, debugger)
 
         # recursively create root directory if it doesn't exist
-        if not os.path.exists(self.__backup_directory):
-            os.makedirs(self.__backup_directory)
+        if not os.path.exists(self.__database.get_backup_directory()):
+            os.makedirs(self.__database.get_backup_directory())
 
         self.__remove_empty_directories__()
 
 
     def __post_run(self, section, need_backup, debugger=None):
-        if self.__command_post_run:
-            print 'post-run command: %s' % self.__command_post_run
+        if self.__database.get_post_run_command():
+            print 'post-run command: %s' % \
+                self.__database.get_post_run_command()
             proc = subprocess.Popen( \
-                self.__command_post_run, shell=True, stdin=subprocess.PIPE, \
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                self.__database.get_post_run_command(), shell=True, \
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, \
+                    stderr=subprocess.PIPE)
 
             output = proc.communicate()
             if output[0]:
@@ -388,26 +353,27 @@ class Lalikan:
 
     def __create_backup(self, backup_type, debugger):
         print
-        if backup_type not in self.__backup_postfixes:
-            raise ValueError('wrong backup type given ("%s")' % backup_type)
+        self.__database.check_backup_type(backup_type)
 
-        backup_postfix = self.__backup_postfixes[backup_type]
+        backup_postfix = self.__database.get_backup_postfix(backup_type)
 
         if backup_type == 'full':
             reference_base = 'none'
             reference_option = ''
         elif backup_type == 'differential':
-            reference_base = self.__name_of_last_backup('full', debugger)
+            reference_base = self.__database.name_of_last_backup( \
+                'full', debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + self.__sanitise_path(os.path.join( \
-                self.__backup_directory, reference_base, reference_catalog))
+                self.__database.get_backup_directory(), reference_base, \
+                    reference_catalog))
         elif backup_type == 'incremental':
-            last_full = self.__days_since_last_backup( \
+            last_full = self.__database.days_since_last_backup( \
                 'full', debugger)
-            last_differential = self.__days_since_last_backup( \
+            last_differential = self.__database.days_since_last_backup( \
                 'differential', debugger)
-            last_incremental = self.__days_since_last_backup( \
+            last_incremental = self.__database.days_since_last_backup( \
                 'incremental', debugger)
 
             newest_backup = 'full'
@@ -421,20 +387,23 @@ class Lalikan:
                 newest_backup = 'incremental'
                 newest_age = last_incremental
 
-            reference_base = self.__name_of_last_backup(newest_backup, debugger)
+            reference_base = self.__database.name_of_last_backup( \
+                newest_backup, debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + self.__sanitise_path(os.path.join( \
-                self.__backup_directory, reference_base, reference_catalog))
+                self.__database.get_backup_directory(), reference_base, \
+                    reference_catalog))
 
         if debugger:
             now = debugger['now']
         else:
             now = datetime.datetime.utcnow()
 
-        timestamp = now.strftime(self.__date_format)
+        timestamp = now.strftime(self.__database.get_date_format())
         base_name = '%s-%s' % (timestamp, backup_postfix)
-        base_directory = os.path.join(self.__backup_directory, base_name)
+        base_directory = os.path.join( \
+            self.__database.get_backup_directory(), base_name)
         base_file = os.path.join(base_directory, base_name)
         catalog_name = '%s-%s' % (timestamp, "catalog")
         catalog_file = os.path.join(base_directory, catalog_name)
@@ -448,10 +417,10 @@ class Lalikan:
             os.mkdir(base_directory)
 
             cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
-                {'dar': self.__path_to_dar, \
+                {'dar': self.__database.get_path_to_dar(), \
                  'base': self.__sanitise_path(base_file), \
                  'reference': reference_option, \
-                 'options': self.__backup_options}
+                 'options': self.__database.get_backup_options()}
 
             print 'creating backup: %s\n' % cmd
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -474,10 +443,10 @@ class Lalikan:
 
             # isolate catalog
             cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
-                {'dar': self.__path_to_dar, \
+                {'dar': self.__database.get_path_to_dar(), \
                  'base': self.__sanitise_path(catalog_file), \
                  'reference': self.__sanitise_path(base_file), \
-                 'options': self.__backup_options}
+                 'options': self.__database.get_backup_options()}
 
             print 'isolating catalog: %s\n' % cmd
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -495,11 +464,12 @@ class Lalikan:
         if debugger:
             return
 
-        if self.__backup_database:
-            if not os.path.exists(self.__backup_database):
+        if self.__database.get_database():
+            if not os.path.exists(self.__database.get_database()):
                 cmd = '%(dar_manager)s --create %(database)s -Q' % \
-                    {'dar_manager': self.__path_to_dar_manager, \
-                     'database': self.__sanitise_path(self.__backup_database)}
+                    {'dar_manager': self.__database.get_path_to_dar_manager(), \
+                     'database': self.__sanitise_path( \
+                        self.__database.get_database())}
 
                 print 'creating database: %s\n' % cmd
                 proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -511,8 +481,9 @@ class Lalikan:
                     raise OSError('dar_manager exited with code %d' % retcode)
 
             cmd = '%(dar_manager)s --base %(database)s --add %(catalog)s %(base)s -Q' % \
-                {'dar_manager': self.__path_to_dar_manager, \
-                 'database': self.__sanitise_path(self.__backup_database), \
+                {'dar_manager': self.__database.get_path_to_dar_manager(), \
+                 'database': self.__sanitise_path( \
+                    self.__database.get_database()), \
                  'catalog': self.__sanitise_path(catalog_file), \
                  'base': self.__sanitise_path(base_file)}
 
@@ -528,36 +499,36 @@ class Lalikan:
 
 
     def __delete_old_backups(self, backup_type, debugger):
-        if backup_type in self.__backup_postfixes:
-            backup_postfix = self.__backup_postfixes[backup_type]
-        else:
-            raise ValueError('wrong backup type given ("%s")' % backup_type)
+        self.__database.check_backup_type(backup_type)
 
-        remove_prior = self.__find_old_backups(backup_type, None, debugger)
+        backup_postfix = self.__database.get_backup_postfix(backup_type)
+        remove_prior = self.__database.find_old_backups( \
+            backup_type, None, debugger)
         if len (remove_prior) < 2:
             return
         else:
             # get date of previous backup of same type
             prior_date = remove_prior[-2]
             prior_date = prior_date[:-len(backup_postfix) - 1]
-            prior_date = datetime.datetime.strptime(prior_date, \
-                                                        self.__date_format)
+            prior_date = datetime.datetime.strptime( \
+                prior_date, self.__database.get_date_format())
 
         # please remember: never delete full backups!
         if backup_type == 'full':
             print '\nfull: removing diff and incr prior to last full (%s)\n' % \
                 prior_date
 
-            for basename in self.__find_old_backups('incremental', \
-                                                        prior_date, debugger):
+            for basename in self.__database.find_old_backups( \
+                    'incremental', prior_date, debugger):
                 self.__delete_backup(basename, debugger)
-            for basename in self.__find_old_backups('differential', \
-                                                        prior_date, debugger):
+            for basename in self.__database.find_old_backups( \
+                    'differential', prior_date, debugger):
                 self.__delete_backup(basename, debugger)
 
             # separate check for old differential backups
-            backup_postfix_diff = self.__backup_postfixes['differential']
-            remove_prior_diff = self.__find_old_backups( \
+            backup_postfix_diff = self.__database.get_backup_postfix( \
+                'differential')
+            remove_prior_diff = self.__database.find_old_backups( \
                 'differential', None, debugger)
 
             if (len (remove_prior) > 1) and (len(remove_prior_diff) > 0):
@@ -565,27 +536,27 @@ class Lalikan:
                 last_full_date = remove_prior[-1]
                 last_full_date = last_full_date[:-len(backup_postfix) - 1]
                 last_full_date = datetime.datetime.strptime( \
-                    last_full_date, self.__date_format)
+                    last_full_date, self.__database.get_date_format())
 
                 # get date of last differential backup
                 last_diff_date = remove_prior_diff[-1]
                 last_diff_date = last_diff_date[:-len(backup_postfix_diff) - 1]
                 last_diff_date = datetime.datetime.strptime( \
-                    last_diff_date, self.__date_format)
+                    last_diff_date, self.__database.get_date_format())
 
                 print '\nfull: removing incr prior to last diff (%s)\n' % \
                     last_diff_date
 
-                for basename in self.__find_old_backups( \
-                    'incremental', last_diff_date, debugger):
+                for basename in self.__database.find_old_backups( \
+                        'incremental', last_diff_date, debugger):
                     self.__delete_backup(basename, debugger)
 
         elif backup_type == 'differential':
             print '\ndiff: removing incr prior to last diff (%s)\n' % \
                 prior_date
 
-            for basename in self.__find_old_backups('incremental', \
-                                                        prior_date, debugger):
+            for basename in self.__database.find_old_backups( \
+                    'incremental', prior_date, debugger):
                 self.__delete_backup(basename, debugger)
         elif backup_type == 'incremental':
             return
@@ -602,13 +573,15 @@ class Lalikan:
             del debugger['directories'][n]
             del debugger['references'][n]
         else:
-            base_directory = os.path.join(self.__backup_directory, basename)
+            base_directory = os.path.join( \
+                self.__database.get_backup_directory(), basename)
             for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
                 os.unlink(backup_file)
 
             cmd = '%(dar_manager)s --base %(database)s --list -Q' % \
-                {'dar_manager': self.__path_to_dar_manager, \
-                 'database': self.__sanitise_path(self.__backup_database)}
+                {'dar_manager': self.__database.get_path_to_dar_manager(), \
+                 'database': self.__sanitise_path( \
+                    self.__database.get_database())}
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, \
                                         stdout=subprocess.PIPE)
             output = proc.communicate()
@@ -626,9 +599,10 @@ class Lalikan:
                             % backup_number
 
                         cmd = '%(dar_manager)s --base %(database)s --delete %(number)s -Q' % \
-                            {'dar_manager': self.__path_to_dar_manager, \
+                            {'dar_manager': \
+                                 self.__database.get_path_to_dar_manager(), \
                              'database': self.__sanitise_path( \
-                                 self.__backup_database), \
+                                 self.__database.get_database()), \
                              'number': backup_number}
                         proc = subprocess.Popen(cmd, shell=True, \
                                                     stdin=subprocess.PIPE)
@@ -643,168 +617,6 @@ class Lalikan:
 
             if not backup_in_database:
                 print 'database not updated (backup not found)\n' \
-
-
-    def __need_backup(self, debugger):
-        for backup_type in self.__backup_types:
-            if self.__last_backup(backup_type, debugger) < 0:
-                return backup_type
-
-        if self.__force_backup:
-            return 'incremental (forced)'
-        else:
-            return 'none'
-
-
-    def __last_backup(self, backup_type, debugger):
-        if backup_type not in self.__backup_postfixes:
-            raise ValueError('wrong backup type given ("%s")' % backup_type)
-
-        backup_last = self.__days_since_last_backup(backup_type, debugger)
-        backup_due = self.__days_since_backup_due_date(backup_type, debugger)
-
-        if backup_type == 'differential':
-            backup_interval = self.__backup_interval['differential']
-            backup_due_full = self.__days_since_backup_due_date( \
-                'full', debugger)
-
-            # differential backups should pause for one backup
-            # interval after a full backup is due
-            if (backup_last < 0) or (backup_due_full < backup_interval):
-                backup_due = backup_due_full - backup_interval
-
-        # skip backup
-        if backup_due < 0:
-            return 1
-        # no previous backup found, so mark it as due
-        elif backup_last < 0:
-            return -1
-        # mark backup as due when last backup is older than its
-        # scheduled date
-        else:
-            return backup_due - backup_last
-
-
-    def __find_old_backups(self, backup_type, prior_date, debugger):
-        if backup_type in self.__backup_postfixes:
-            backup_postfix = self.__backup_postfixes[backup_type]
-        else:
-            raise ValueError('wrong backup type given ("%s")' % backup_type)
-
-        regex = re.compile('^%s-%s$' % (self.__date_regex, backup_postfix))
-        directories = []
-        if debugger:
-            for item in debugger['directories']:
-                if regex.match(item):
-                    directories.append(item)
-        else:
-            for item in os.listdir(self.__backup_directory):
-                item_full = os.path.join(self.__backup_directory, item)
-                # only add item if is a directory ...
-                if os.path.isdir(item_full):
-                    # ... which name matches the date/postfix regex ...
-                    if regex.match(item):
-                        timestamp = item.rsplit('-', 1)[0]
-                        catalog_name = '%s-%s.1.dar' % (timestamp, "catalog")
-                        catalog_full = os.path.join(self.__backup_directory, \
-                                                        item, catalog_name)
-                        # ... and which contains a readable catalog file
-                        if os.access(catalog_full, os.R_OK):
-                            directories.append(item)
-
-        directories.sort()
-
-        if type(prior_date) == datetime.datetime:
-            old_directories = directories
-            directories = []
-
-            for item in old_directories:
-                item_date = item[:-len(backup_postfix) - 1]
-                item_date = datetime.datetime.strptime(item_date, \
-                                                           self.__date_format)
-                if item_date < prior_date:
-                    directories.append(item)
-
-        return directories
-
-
-    def __name_of_last_backup(self, backup_type, debugger):
-        if type(self.__last_backup_file[backup_type]) != types.NoneType:
-            return self.__last_backup_file[backup_type]
-
-        directories = self.__find_old_backups(backup_type, None, debugger)
-        if len(directories) == 0:
-            return None
-        else:
-            self.__last_backup_file[backup_type] = directories[-1]
-            return self.__last_backup_file[backup_type]
-
-
-    def __days_since_last_backup(self, backup_type, debugger):
-        if type(self.__last_backup_days[backup_type]) != types.NoneType:
-            return self.__last_backup_days[backup_type]
-
-        most_recent = self.__name_of_last_backup(backup_type, debugger)
-
-        if type(most_recent) == types.NoneType:
-            return -1.0
-        else:
-            if backup_type in self.__backup_postfixes:
-                backup_postfix = self.__backup_postfixes[backup_type]
-            else:
-                raise ValueError('wrong backup type given ("%s")' % backup_type)
-
-            most_recent = most_recent[:-len(backup_postfix) - 1]
-            most_recent_datetime = datetime.datetime.strptime( \
-                most_recent, self.__date_format)
-            if debugger:
-                now = debugger['now']
-            else:
-                now = datetime.datetime.utcnow()
-
-            age = now - most_recent_datetime
-            self.__last_backup_days[backup_type] = \
-                age.days + age.seconds / 86400.0
-
-            return self.__last_backup_days[backup_type]
-
-
-    def __days_since_backup_due_date(self, backup_type, debugger):
-        if backup_type in self.__backup_postfixes:
-            backup_postfix = self.__backup_postfixes[backup_type]
-        else:
-            raise ValueError('wrong backup type given ("%s")' % backup_type)
-
-        if backup_type == 'full':
-            if debugger:
-                now = debugger['now']
-            else:
-                now = datetime.datetime.utcnow()
-
-            time_passed = now - self.__backup_start_time
-            days_passed = time_passed.days + time_passed.seconds / 86400.0
-        else:
-            days_passed = self.__days_since_backup_due_date('full', debugger)
-
-        # backup start date lies in the future
-        if days_passed < 0:
-            return days_passed
-
-        days_since_due_date = days_passed % self.__backup_interval[backup_type]
-        return days_since_due_date
-
-
-    def __days_to_next_backup_due_date(self, backup_type, debugger):
-        if backup_type not in self.__backup_postfixes:
-            raise ValueError('wrong backup type given ("%s")' % backup_type)
-
-        remaining_days = -self.__days_since_backup_due_date( \
-            backup_type, debugger)
-
-        if remaining_days < 0:
-            remaining_days += self.__backup_interval[backup_type]
-
-        return remaining_days
 
 
     def __get_backup_size(self, base_file):
