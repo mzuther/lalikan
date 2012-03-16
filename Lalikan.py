@@ -218,7 +218,7 @@ class Lalikan:
                     print e
 
                     if error:
-                        self._notify_user('At least one error has occurred!', \
+                        self.__notify_user('At least one error has occurred!', \
                                               self._FINAL_ERROR, debugger)
         elif self.__section in settings.sections():
             try:
@@ -270,7 +270,7 @@ class Lalikan:
             elif need_backup == 'incremental (forced)':
                 need_backup = 'incremental'
 
-            self._notify_user('Starting %s backup...' % need_backup, \
+            self.__notify_user('Starting %s backup...' % need_backup, \
                                   self._INFORMATION, debugger)
 
             self.__create_backup(need_backup, debugger)
@@ -356,9 +356,9 @@ class Lalikan:
 
             output = proc.communicate()
             if output[0]:
-                self._notify_user(output[0], self._INFORMATION, debugger)
+                self.__notify_user(output[0], self._INFORMATION, debugger)
             if output[1]:
-                self._notify_user(output[1], self._ERROR, debugger)
+                self.__notify_user(output[1], self._ERROR, debugger)
 
         # recursively create root directory if it doesn't exist
         if not os.path.exists(self.__backup_directory):
@@ -376,12 +376,12 @@ class Lalikan:
 
             output = proc.communicate()
             if output[0]:
-                self._notify_user(output[0], self._INFORMATION, debugger)
+                self.__notify_user(output[0], self._INFORMATION, debugger)
             if output[1]:
-                self._notify_user(output[1], self._ERROR, debugger)
+                self.__notify_user(output[1], self._ERROR, debugger)
 
         if need_backup != 'none':
-            self._notify_user('Finished backup.', self._INFORMATION, debugger)
+            self.__notify_user('Finished backup.', self._INFORMATION, debugger)
 
         print '---'
 
@@ -400,7 +400,7 @@ class Lalikan:
             reference_base = self.__name_of_last_backup('full', debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
-            reference_option = '--ref ' + self._sanitise_path(os.path.join( \
+            reference_option = '--ref ' + self.__sanitise_path(os.path.join( \
                 self.__backup_directory, reference_base, reference_catalog))
         elif backup_type == 'incremental':
             last_full = self.__days_since_last_backup( \
@@ -424,7 +424,7 @@ class Lalikan:
             reference_base = self.__name_of_last_backup(newest_backup, debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
-            reference_option = '--ref ' + self._sanitise_path(os.path.join( \
+            reference_option = '--ref ' + self.__sanitise_path(os.path.join( \
                 self.__backup_directory, reference_base, reference_catalog))
 
         if debugger:
@@ -449,7 +449,7 @@ class Lalikan:
 
             cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
                 {'dar': self.__path_to_dar, \
-                 'base': self._sanitise_path(base_file), \
+                 'base': self.__sanitise_path(base_file), \
                  'reference': reference_option, \
                  'options': self.__backup_options}
 
@@ -460,23 +460,23 @@ class Lalikan:
             print
 
             if retcode == 11:
-                self._notify_user('Some files were changed during backup', \
+                self.__notify_user('Some files were changed during backup', \
                                       self._WARNING, debugger)
             elif retcode > 0:
                 # FIXME: maybe catch exceptions
                 # FIXME: delete slices and directory (also in "debugger")
-                self._notify_user('dar exited with code %d' % retcode, \
+                self.__notify_user('dar exited with code %d' % retcode, \
                                       self._ERROR, debugger)
 
-            self._notify_user('%(files)d file(s), %(size)s\n' % \
+            self.__notify_user('%(files)d file(s), %(size)s\n' % \
                                   self.__get_backup_size(base_file), \
                                   self._INFORMATION, debugger)
 
             # isolate catalog
             cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
                 {'dar': self.__path_to_dar, \
-                 'base': self._sanitise_path(catalog_file), \
-                 'reference': self._sanitise_path(base_file), \
+                 'base': self.__sanitise_path(catalog_file), \
+                 'reference': self.__sanitise_path(base_file), \
                  'options': self.__backup_options}
 
             print 'isolating catalog: %s\n' % cmd
@@ -499,7 +499,7 @@ class Lalikan:
             if not os.path.exists(self.__backup_database):
                 cmd = '%(dar_manager)s --create %(database)s -Q' % \
                     {'dar_manager': self.__path_to_dar_manager, \
-                     'database': self._sanitise_path(self.__backup_database)}
+                     'database': self.__sanitise_path(self.__backup_database)}
 
                 print 'creating database: %s\n' % cmd
                 proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -512,9 +512,9 @@ class Lalikan:
 
             cmd = '%(dar_manager)s --base %(database)s --add %(catalog)s %(base)s -Q' % \
                 {'dar_manager': self.__path_to_dar_manager, \
-                 'database': self._sanitise_path(self.__backup_database), \
-                 'catalog': self._sanitise_path(catalog_file), \
-                 'base': self._sanitise_path(base_file)}
+                 'database': self.__sanitise_path(self.__backup_database), \
+                 'catalog': self.__sanitise_path(catalog_file), \
+                 'base': self.__sanitise_path(base_file)}
 
             print 'updating database: %s\n' % cmd
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -523,8 +523,8 @@ class Lalikan:
 
             if retcode > 0:
                 # FIXME: maybe catch exceptions
-                self._notify_user('dar_manager exited with code %d' % retcode, \
-                                      self._ERROR, debugger)
+                self.__notify_user('dar_manager exited with code %d' % \
+                                       retcode, self._ERROR, debugger)
 
 
     def __delete_old_backups(self, backup_type, debugger):
@@ -608,7 +608,7 @@ class Lalikan:
 
             cmd = '%(dar_manager)s --base %(database)s --list -Q' % \
                 {'dar_manager': self.__path_to_dar_manager, \
-                 'database': self._sanitise_path(self.__backup_database)}
+                 'database': self.__sanitise_path(self.__backup_database)}
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, \
                                         stdout=subprocess.PIPE)
             output = proc.communicate()
@@ -627,7 +627,7 @@ class Lalikan:
 
                         cmd = '%(dar_manager)s --base %(database)s --delete %(number)s -Q' % \
                             {'dar_manager': self.__path_to_dar_manager, \
-                             'database': self._sanitise_path( \
+                             'database': self.__sanitise_path( \
                                  self.__backup_database), \
                              'number': backup_number}
                         proc = subprocess.Popen(cmd, shell=True, \
@@ -830,7 +830,7 @@ class Lalikan:
         return {'files': files, 'size': filesize}
 
 
-    def _sanitise_path(self, original_path):
+    def __sanitise_path(self, original_path):
         if len(original_path) == 0:
             return original_path
 
@@ -846,7 +846,7 @@ class Lalikan:
             return new_path
 
 
-    def _notify_user(self, message, urgency, debugger):
+    def __notify_user(self, message, urgency, debugger):
         assert(urgency in (self._INFORMATION, self._WARNING, self._ERROR, \
                                self._FINAL_ERROR))
 
