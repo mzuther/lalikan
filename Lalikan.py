@@ -429,12 +429,12 @@ class Lalikan:
             print
 
             if retcode == 11:
-                self.__notify_user('Some files were changed during backup', \
+                self.__notify_user('Some files were changed during backup.', \
                                       self._WARNING, debugger)
             elif retcode > 0:
                 # FIXME: maybe catch exceptions
                 # FIXME: delete slices and directory (also in "debugger")
-                self.__notify_user('dar exited with code %d' % retcode, \
+                self.__notify_user('dar exited with code %d.' % retcode, \
                                       self._ERROR, debugger)
 
             self.__notify_user('%(files)d file(s), %(size)s\n' % \
@@ -454,7 +454,10 @@ class Lalikan:
             retcode = proc.wait()
             print
 
-            if retcode > 0:
+            if retcode == 5:
+                self.__notify_user('Some files do not follow chronological order when archive index increases.', \
+                                      self._WARNING, debugger)
+            elif retcode > 0:
                 # FIXME: maybe catch exceptions
                 # FIXME: delete slices and directory (also in "debugger")
                 raise OSError('dar exited with code %d' % retcode)
@@ -494,7 +497,7 @@ class Lalikan:
 
             if retcode > 0:
                 # FIXME: maybe catch exceptions
-                self.__notify_user('dar_manager exited with code %d' % \
+                self.__notify_user('dar_manager exited with code %d.' % \
                                        retcode, self._ERROR, debugger)
 
 
