@@ -23,11 +23,10 @@
 
 """
 
-import ConfigParser
+import configparser
 import gettext
 import locale
 import os
-import types
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))
@@ -86,7 +85,7 @@ Thank you for using free software!"""
             raise IOError(_('File "%s" not found.') % self.__config_file_path__)
 
         # read application settings from INI file
-        self.__settings__ = ConfigParser.RawConfigParser()
+        self.__settings__ = configparser.RawConfigParser()
         self.__settings__.read(self.__config_file_path__)
 
 
@@ -131,7 +130,7 @@ Thank you for using free software!"""
                                      {'setting': setting, 'section': section})
             else:
                 return value
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             if allow_empty:
                 return ''
             else:
@@ -198,11 +197,12 @@ Thank you for using free software!"""
             return None
 
 
-    def get_description(self, long):
+    def get_description(self, long_description):
         """Return application description as string.
 
         Keyword arguments:
-        long -- Boolean indication whether to output long version of description
+        long_description -- Boolean indication whether to output long
+        version of description
 
         Return value:
         Formatted string containing application description
@@ -213,7 +213,7 @@ Thank you for using free software!"""
                  'version':self.get_variable('version')}
         description += '\n' + '=' * len(description)
 
-        if long:
+        if long_description:
             description += '\n%(description)s' % \
                 {'description':self.get_variable('description')}
 
@@ -235,17 +235,18 @@ Thank you for using free software!"""
                  'authors':self.get_variable('authors')}
 
 
-    def get_license(self, long):
+    def get_license(self, long_description):
         """Return application license as string.
 
         Keyword arguments:
-        long -- Boolean indication whether to output long version of description
+        long_description -- Boolean indication whether to output long
+        version of description
 
         Return value:
         Formatted string containing application license
 
         """
-        if long:
+        if long_description:
             return self.get_variable('license_long')
         else:
             return self.get_variable('license_short')

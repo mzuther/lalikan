@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """Lalikan
@@ -33,7 +33,6 @@ import re
 import socket
 import subprocess
 import time
-import types
 
 from optparse import OptionParser
 
@@ -89,29 +88,29 @@ class Lalikan:
         # parse command line
         (options, args) = parser.parse_args()
 
-        print settings.get_description(False)
+        print(settings.get_description(False))
 
         self.__section = options.section
         self.__force_backup = options.force_backup
 
         if options.list_sections:
-            print 'The following sections have been defined in the configuration file:\n'
+            print('The following sections have been defined in the configuration file:\n')
 
             for section in settings.sections():
-                print ' * %s' % section
+                print(' * %s' % section)
 
-            print
+            print()
             exit(0)
 
         if (self.__section not in settings.sections()) and \
-                (type(self.__section) != types.NoneType):
-            print 'The specified section \'%s\' has not been defined.  Please use one of these:\n' % \
-                options.section
+                (self.__section is not None):
+            print('The specified section \'%s\' has not been defined.  Please use one of these:\n' % \
+                options.section)
 
             for section in settings.sections():
-                print ' * %s' % section
+                print(' * %s' % section)
 
-            print
+            print()
             exit(1)
 
 
@@ -128,9 +127,9 @@ class Lalikan:
             created_backup = self.run(debugger)
 
             if not created_backup:
-                print
-            print '----- %s ------' % debugger['now'].strftime( \
-                self.__database.get_date_format())
+                print()
+            print('----- %s ------' % debugger['now'].strftime( \
+                self.__database.get_date_format()))
             if created_backup:
                 for n in range(len(debugger['directories'])):
                     directory = debugger['directories'][n]
@@ -145,34 +144,34 @@ class Lalikan:
 
                     if directory.endswith( \
                         self.__database.get_backup_postfix('full')):
-                        print '%s            %s' % (directory, reference)
+                        print('%s            %s' % (directory, reference))
                     elif directory.endswith( \
                             self.__database.get_backup_postfix('differential')):
-                        print '    %s        %s' % (directory, reference)
+                        print('    %s        %s' % (directory, reference))
                     else:
-                        print '        %s    %s' % (directory, reference)
-                print '----------------------------\n'
+                        print('        %s    %s' % (directory, reference))
+                print('----------------------------\n')
 
 
     def run(self, debugger=None):
         if debugger:
             try:
-                if type(self.__section) == types.NoneType:
+                if self.__section is None:
                     self.__run(settings.sections()[0], debugger)
                 else:
                     self.__run(self.__section, debugger)
-            except OSError, e:
-                print e
+            except OSError as e:
+                print(e)
                 exit(1)
-        elif type(self.__section) == types.NoneType:
+        elif self.__section is None:
             for self.__section in settings.sections():
                 error = False
 
                 try:
                     self.__run(self.__section, debugger)
-                except OSError, e:
+                except OSError as e:
                     error = True
-                    print e
+                    print(e)
 
                     if error:
                         self.__notify_user('At least one error has occurred!', \
@@ -180,8 +179,8 @@ class Lalikan:
         elif self.__section in settings.sections():
             try:
                 self.__run(self.__section, debugger)
-            except OSError, e:
-                print e
+            except OSError as e:
+                print(e)
                 exit(1)
         else:
             exit(1)
@@ -194,8 +193,8 @@ class Lalikan:
         if not debugger and os.name == 'posix':
             # check whether the script runs with superuser rights
             if (os.getuid() != 0) or (os.getgid() != 0):
-                print '\n%s\n' % \
-                    _('You have to run this application with superuser rights.')
+                print('\n%s\n' % \
+                    _('You have to run this application with superuser rights.'))
                 exit(1)
 
         if not self.__client_is_online():
@@ -209,20 +208,20 @@ class Lalikan:
             need_backup = self.__database.need_backup( \
                 self.__force_backup, debugger)
 
-            print '\nnext full in  %7.3f days  (%7.3f)' % \
+            print('\nnext full in  %7.3f days  (%7.3f)' % \
                 (self.__database.days_to_next_backup_due_date( \
                     'full', debugger), \
-                     self.__database.get_backup_interval('full'))
-            print 'next diff in  %7.3f days  (%7.3f)' % \
+                     self.__database.get_backup_interval('full')))
+            print('next diff in  %7.3f days  (%7.3f)' % \
                 (self.__database.days_to_next_backup_due_date( \
                     'differential', debugger), \
-                     self.__database.get_backup_interval('differential'))
-            print 'next incr in  %7.3f days  (%7.3f)\n' % \
+                     self.__database.get_backup_interval('differential')))
+            print('next incr in  %7.3f days  (%7.3f)\n' % \
                 (self.__database.days_to_next_backup_due_date( \
                     'incremental', debugger), \
-                     self.__database.get_backup_interval('incremental'))
+                     self.__database.get_backup_interval('incremental')))
 
-            print 'backup type:  %s\n' % need_backup
+            print('backup type:  %s\n' % need_backup)
 
             if need_backup == 'none':
                 return False
@@ -263,14 +262,14 @@ class Lalikan:
 
                 # client is online
                 return True
-            except Exception, e:
+            except Exception as e:
                 # an error occurred
-                print e
+                print(e)
 
         # no connection to client possible
-        print 'Host "%(host)s" does not listen on port %(port)s.' % \
+        print('Host "%(host)s" does not listen on port %(port)s.' % \
             {'host': self.__database.get_backup_client(), \
-                 'port': self.__database.get_backup_client_port()}
+                 'port': self.__database.get_backup_client_port()})
         return False
 
 
@@ -301,15 +300,15 @@ class Lalikan:
                     if (len(directories) < 1) and (len(files) < 1):
                         # keep looping to find *all* empty directories
                         repeat = True
-                        print _('removing empty directory "%(directory)s"') % \
-                            {'directory':root}
+                        print(_('removing empty directory "%(directory)s"') % \
+                            {'directory':root})
                         # delete empty directory
                         os.rmdir(root)
 
 
     def __pre_run(self, section, debugger=None):
         if self.__database.get_pre_run_command():
-            print 'pre-run command: %s' % self.__database.get_pre_run_command()
+            print('pre-run command: %s' % self.__database.get_pre_run_command())
             # stdin is needed to be able to communicate with the
             # application (i.e. answer a question)
             proc = subprocess.Popen( \
@@ -332,8 +331,8 @@ class Lalikan:
 
     def __post_run(self, section, need_backup, debugger=None):
         if self.__database.get_post_run_command():
-            print 'post-run command: %s' % \
-                self.__database.get_post_run_command()
+            print('post-run command: %s' % \
+                self.__database.get_post_run_command())
             proc = subprocess.Popen( \
                 self.__database.get_post_run_command(), shell=True, \
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, \
@@ -348,11 +347,11 @@ class Lalikan:
         if need_backup != 'none':
             self.__notify_user('Finished backup.', self._INFORMATION, debugger)
 
-        print '---'
+        print('---')
 
 
     def __create_backup(self, backup_type, debugger):
-        print
+        print()
         self.__database.check_backup_type(backup_type)
 
         backup_postfix = self.__database.get_backup_postfix(backup_type)
@@ -408,7 +407,7 @@ class Lalikan:
         catalog_name = '%s-%s' % (timestamp, "catalog")
         catalog_file = os.path.join(base_directory, catalog_name)
 
-        print 'basefile: %s\n' % base_file
+        print('basefile: %s\n' % base_file)
 
         if debugger:
             debugger['directories'].append(base_name)
@@ -422,11 +421,11 @@ class Lalikan:
                  'reference': reference_option, \
                  'options': self.__database.get_backup_options()}
 
-            print 'creating backup: %s\n' % cmd
+            print('creating backup: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
             proc.communicate()
             retcode = proc.wait()
-            print
+            print()
 
             if retcode == 11:
                 self.__notify_user('Some files were changed during backup.', \
@@ -448,11 +447,11 @@ class Lalikan:
                  'reference': self.__sanitise_path(base_file), \
                  'options': self.__database.get_backup_options()}
 
-            print 'isolating catalog: %s\n' % cmd
+            print('isolating catalog: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
             proc.communicate()
             retcode = proc.wait()
-            print
+            print()
 
             if retcode == 5:
                 self.__notify_user('Some files do not follow chronological order when archive index increases.', \
@@ -474,7 +473,7 @@ class Lalikan:
                      'database': self.__sanitise_path( \
                         self.__database.get_database())}
 
-                print 'creating database: %s\n' % cmd
+                print('creating database: %s\n' % cmd)
                 proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
                 proc.communicate()
                 retcode = proc.wait()
@@ -490,7 +489,7 @@ class Lalikan:
                  'catalog': self.__sanitise_path(catalog_file), \
                  'base': self.__sanitise_path(base_file)}
 
-            print 'updating database: %s\n' % cmd
+            print('updating database: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
             proc.communicate()
             retcode = proc.wait()
@@ -518,8 +517,8 @@ class Lalikan:
 
         # please remember: never delete full backups!
         if backup_type == 'full':
-            print '\nfull: removing diff and incr prior to last full (%s)\n' % \
-                prior_date
+            print('\nfull: removing diff and incr prior to last full (%s)\n' % \
+                prior_date)
 
             for basename in self.__database.find_old_backups( \
                     'incremental', prior_date, debugger):
@@ -547,16 +546,16 @@ class Lalikan:
                 last_diff_date = datetime.datetime.strptime( \
                     last_diff_date, self.__database.get_date_format())
 
-                print '\nfull: removing incr prior to last diff (%s)\n' % \
-                    last_diff_date
+                print('\nfull: removing incr prior to last diff (%s)\n' % \
+                    last_diff_date)
 
                 for basename in self.__database.find_old_backups( \
                         'incremental', last_diff_date, debugger):
                     self.__delete_backup(basename, debugger)
 
         elif backup_type == 'differential':
-            print '\ndiff: removing incr prior to last diff (%s)\n' % \
-                prior_date
+            print('\ndiff: removing incr prior to last diff (%s)\n' % \
+                prior_date)
 
             for basename in self.__database.find_old_backups( \
                     'incremental', prior_date, debugger):
@@ -568,7 +567,7 @@ class Lalikan:
 
 
     def __delete_backup(self, basename, debugger):
-        print 'deleting old backup "%s"' % basename
+        print('deleting old backup "%s"' % basename)
         if debugger:
             n = debugger['directories'].index(basename)
             assert n >= 0
@@ -598,8 +597,8 @@ class Lalikan:
                     if regex_match:
                         backup_in_database = True
                         backup_number = regex_match.group(0)
-                        print 'updating database (removing backup #%s)' \
-                            % backup_number
+                        print('updating database (removing backup #%s)' \
+                            % backup_number)
 
                         cmd = '%(dar_manager)s --base %(database)s --delete %(number)s -Q' % \
                             {'dar_manager': \
@@ -613,13 +612,13 @@ class Lalikan:
                         retcode = proc.wait()
 
                         if retcode != 0:
-                            print 'could not update database'
+                            print('could not update database')
                         else:
-                            print
+                            print()
 
 
             if not backup_in_database:
-                print 'database not updated (backup not found)\n' \
+                print('database not updated (backup not found)\n') \
 
 
     def __get_backup_size(self, base_file):
@@ -687,12 +686,12 @@ class Lalikan:
         if urgency == self._ERROR:
             raise OSError(message)
         if urgency == self._FINAL_ERROR:
-            print message
+            print(message)
             exit(1)
         elif urgency == self._WARNING:
-            print 'WARNING: %s' % message
+            print('WARNING: %s' % message)
         else:
-            print '%s' % message
+            print('%s' % message)
 
 
 if __name__ == '__main__':
