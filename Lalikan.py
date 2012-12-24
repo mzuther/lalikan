@@ -35,7 +35,6 @@ import re
 import socket
 import subprocess
 import time
-import types
 
 from optparse import OptionParser
 
@@ -106,7 +105,7 @@ class Lalikan:
             exit(0)
 
         if (self.__section not in settings.sections()) and \
-                (type(self.__section) != types.NoneType):
+                (self.__section is not None):
             print('The specified section \'%s\' has not been defined.  Please use one of these:\n' % \
                 options.section)
 
@@ -159,14 +158,14 @@ class Lalikan:
     def run(self, debugger=None):
         if debugger:
             try:
-                if type(self.__section) == types.NoneType:
+                if self.__section is None:
                     self.__run(settings.sections()[0], debugger)
                 else:
                     self.__run(self.__section, debugger)
             except OSError, e:
                 print(e)
                 exit(1)
-        elif type(self.__section) == types.NoneType:
+        elif self.__section is None:
             for self.__section in settings.sections():
                 error = False
 
@@ -699,5 +698,9 @@ class Lalikan:
 
 if __name__ == '__main__':
     lalikan = Lalikan()
-    #lalikan.test(60, interval=1.0) # DEBUG
-    lalikan.run()
+
+    DEBUG = False
+    if DEBUG:
+        lalikan.test(60, interval=1.0)
+    else:
+        lalikan.run()

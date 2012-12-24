@@ -29,7 +29,6 @@ import ConfigParser
 import gettext
 import locale
 import os
-import types
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))

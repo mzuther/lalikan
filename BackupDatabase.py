@@ -31,7 +31,6 @@ import locale
 import os
 import re
 import time
-import types
 
 from Settings import *
 
@@ -230,7 +229,7 @@ class BackupDatabase:
 
 
     def name_of_last_backup(self, backup_type, debugger):
-        if type(self.__last_backup_file[backup_type]) != types.NoneType:
+        if self.__last_backup_file[backup_type] is not None:
             return self.__last_backup_file[backup_type]
 
         directories = self.find_old_backups(backup_type, None, debugger)
@@ -242,12 +241,12 @@ class BackupDatabase:
 
 
     def days_since_last_backup(self, backup_type, debugger):
-        if type(self.__last_backup_days[backup_type]) != types.NoneType:
+        if self.__last_backup_days[backup_type] is not None:
             return self.__last_backup_days[backup_type]
 
         most_recent = self.name_of_last_backup(backup_type, debugger)
 
-        if type(most_recent) == types.NoneType:
+        if most_recent is None:
             return -1.0
         else:
             self.check_backup_type(backup_type)
