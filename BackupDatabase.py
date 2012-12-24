@@ -23,6 +23,8 @@
 
 """
 
+from __future__ import print_function
+
 import datetime
 import gettext
 import locale
@@ -32,7 +34,6 @@ import time
 import types
 
 from Settings import *
-
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))
@@ -45,7 +46,7 @@ class BackupDatabase:
 
     def __init__(self, section, settings, debugger):
         self.__section = section
-        print 'selected backup \'%s\'' % self.__section
+        print('selected backup \'%s\'' % self.__section)
 
         if debugger:
             self.__backup_client = 'localhost'

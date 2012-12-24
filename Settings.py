@@ -23,6 +23,8 @@
 
 """
 
+from __future__ import print_function
+
 import ConfigParser
 import gettext
 import locale
@@ -198,11 +200,12 @@ Thank you for using free software!"""
             return None
 
 
-    def get_description(self, long):
+    def get_description(self, long_description):
         """Return application description as string.
 
         Keyword arguments:
-        long -- Boolean indication whether to output long version of description
+        long_description -- Boolean indication whether to output long
+        version of description
 
         Return value:
         Formatted string containing application description
@@ -213,7 +216,7 @@ Thank you for using free software!"""
                  'version':self.get_variable('version')}
         description += '\n' + '=' * len(description)
 
-        if long:
+        if long_description:
             description += '\n%(description)s' % \
                 {'description':self.get_variable('description')}
 
@@ -235,17 +238,18 @@ Thank you for using free software!"""
                  'authors':self.get_variable('authors')}
 
 
-    def get_license(self, long):
+    def get_license(self, long_description):
         """Return application license as string.
 
         Keyword arguments:
-        long -- Boolean indication whether to output long version of description
+        long_description -- Boolean indication whether to output long
+        version of description
 
         Return value:
         Formatted string containing application license
 
         """
-        if long:
+        if long_description:
             return self.get_variable('license_long')
         else:
             return self.get_variable('license_short')
