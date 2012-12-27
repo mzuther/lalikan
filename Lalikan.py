@@ -484,7 +484,7 @@ class Lalikan:
                     # FIXME: maybe catch exceptions
                     raise OSError('dar_manager exited with code %d' % retcode)
 
-            cmd = '%(dar_manager)s --base %(database)s --add %(catalog)s %(base)s -Q' % \
+            cmd = '%(dar_manager)s --base %(database)s --add %(catalog)s %(base)s --min-digits 2 --alter=ignore-order -Q' % \
                 {'dar_manager': self.__database.get_path_to_dar_manager(), \
                  'database': self.__sanitise_path( \
                     self.__database.get_database()), \
