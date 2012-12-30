@@ -205,7 +205,7 @@ class BackupDatabase:
                     # ... which name matches the date/postfix regex ...
                     if regex.match(item):
                         timestamp = item.rsplit('-', 1)[0]
-                        catalog_name = '%s-%s.01.dar' % (timestamp, "catalog")
+                        catalog_name = '%s-%s.1.dar' % (timestamp, "catalog")
                         catalog_full = os.path.join(self.__backup_directory, \
                                                         item, catalog_name)
                         # ... and which contains a readable catalog file
