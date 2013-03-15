@@ -26,7 +26,6 @@
 
 import configparser
 import gettext
-import locale
 import os
 
 # initialise localisation settings
@@ -185,10 +184,9 @@ Thank you for using free software!"""
                                 'license_long', 'description')
 
         if variable not in valid_variable_names:
-            raise ValueError("variable '{variable}' not found".format(
-                    **locals()))
+            raise ValueError('variable "{0}" not found'.format(variable))
 
-        return eval('self._{variable}'.format(**locals()))
+        return eval('self._{0}'.format(variable))
 
 
     def get_description(self, long_description):
@@ -247,11 +245,9 @@ Thank you for using free software!"""
             return self.get_variable('license_short')
 
 
-# make everything available ("from Settings import *")
-settings = Settings()
-
-
 if __name__ == '__main__':
+    settings = Settings()
+
     print()
     print(settings)
     print()

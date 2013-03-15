@@ -230,8 +230,9 @@ class Lalikan:
             elif need_backup == 'incremental (forced)':
                 need_backup = 'incremental'
 
-            self.__notify_user('Starting %s backup...' % need_backup, \
-                                  self._INFORMATION, debugger)
+            if not debugger:
+                self.__notify_user('Starting %s backup...' % need_backup, \
+                                       self._INFORMATION, debugger)
 
             self.__create_backup(need_backup, debugger)
         finally:
@@ -366,7 +367,7 @@ class Lalikan:
                 'full', debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
-            reference_option = '--ref ' + self.__sanitise_path(os.path.join( \
+            reference_option = '--ref ' + self.sanitise_path(os.path.join( \
                 self.__database.get_backup_directory(), reference_base, \
                     reference_catalog))
         elif backup_type == 'incremental':
@@ -392,7 +393,7 @@ class Lalikan:
                 newest_backup, debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
-            reference_option = '--ref ' + self.__sanitise_path(os.path.join( \
+            reference_option = '--ref ' + self.sanitise_path(os.path.join( \
                 self.__database.get_backup_directory(), reference_base, \
                     reference_catalog))
 
@@ -419,7 +420,7 @@ class Lalikan:
 
             cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
                 {'dar': self.__database.get_path_to_dar(), \
-                 'base': self.__sanitise_path(base_file), \
+                 'base': self.sanitise_path(base_file), \
                  'reference': reference_option, \
                  'options': self.__database.get_backup_options()}
 
@@ -445,8 +446,8 @@ class Lalikan:
             # isolate catalog
             cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
                 {'dar': self.__database.get_path_to_dar(), \
-                 'base': self.__sanitise_path(catalog_file), \
-                 'reference': self.__sanitise_path(base_file), \
+                 'base': self.sanitise_path(catalog_file), \
+                 'reference': self.sanitise_path(base_file), \
                  'options': self.__database.get_backup_options()}
 
             print('isolating catalog: %s\n' % cmd)
@@ -472,7 +473,7 @@ class Lalikan:
             if not os.path.exists(self.__database.get_database()):
                 cmd = '%(dar_manager)s --create %(database)s -Q' % \
                     {'dar_manager': self.__database.get_path_to_dar_manager(), \
-                     'database': self.__sanitise_path( \
+                     'database': self.sanitise_path( \
                         self.__database.get_database())}
 
                 print('creating database: %s\n' % cmd)
@@ -486,10 +487,10 @@ class Lalikan:
 
             cmd = '%(dar_manager)s --base %(database)s --add %(catalog)s %(base)s --min-digits 2 --alter=ignore-order -Q' % \
                 {'dar_manager': self.__database.get_path_to_dar_manager(), \
-                 'database': self.__sanitise_path( \
+                 'database': self.sanitise_path( \
                     self.__database.get_database()), \
-                 'catalog': self.__sanitise_path(catalog_file), \
-                 'base': self.__sanitise_path(base_file)}
+                 'catalog': self.sanitise_path(catalog_file), \
+                 'base': self.sanitise_path(base_file)}
 
             print('updating database: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -584,7 +585,7 @@ class Lalikan:
 
             cmd = '%(dar_manager)s --base %(database)s --list -Q' % \
                 {'dar_manager': self.__database.get_path_to_dar_manager(), \
-                 'database': self.__sanitise_path( \
+                 'database': self.sanitise_path( \
                     self.__database.get_database())}
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, \
                                         stdout=subprocess.PIPE)
@@ -605,7 +606,7 @@ class Lalikan:
                         cmd = '%(dar_manager)s --base %(database)s --delete %(number)s -Q' % \
                             {'dar_manager': \
                                  self.__database.get_path_to_dar_manager(), \
-                             'database': self.__sanitise_path( \
+                             'database': self.sanitise_path( \
                                  self.__database.get_database()), \
                              'number': backup_number}
                         proc = subprocess.Popen(cmd, shell=True, \
@@ -646,20 +647,8 @@ class Lalikan:
         return {'files': files, 'size': filesize}
 
 
-    def __sanitise_path(self, original_path):
-        if len(original_path) == 0:
-            return original_path
-
-        new_path = os.path.abspath(original_path)
-
-        if os.name == 'nt':
-            (drive, tail) = os.path.splitdrive(new_path)
-            drive = '\\cygdrive\\%s' % drive[0].lower()
-            new_path = drive + tail
-            new_path = new_path.replace('\\', '/')
-            return new_path
-        else:
-            return new_path
+    def sanitise_path(self, path):
+        return self.__database.sanitise_path(path)
 
 
     def __notify_user(self, message, urgency, debugger):
