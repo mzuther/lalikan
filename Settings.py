@@ -4,7 +4,7 @@
    =======
    Backup scheduler for Disk ARchive (DAR)
 
-   Copyright (c) 2010-2012 Martin Zuther (http://www.mzuther.de/)
+   Copyright (c) 2010-2013 Martin Zuther (http://www.mzuther.de/)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,9 +23,8 @@
 
 """
 
-from __future__ import print_function
 
-import ConfigParser
+import configparser
 import gettext
 import locale
 import os
@@ -35,6 +34,7 @@ module_path = os.path.dirname(os.path.realpath(__file__))
 gettext.bindtextdomain('Lalikan', os.path.join(module_path, 'po/'))
 gettext.textdomain('Lalikan')
 _ = gettext.lgettext
+
 
 class Settings:
     """Store user and application settings in one place and make them available.
@@ -50,13 +50,13 @@ class Settings:
 
         """
         # common application copyrights and information (only set here, private)
-        self.__application__ = 'Lalikan.py'
-        self.__cmd_line__ = 'Lalikan'
-        self.__version__ = '0.16'
-        self.__years__ = '2010-2012'
-        self.__authors__ = 'Martin Zuther'
-        self.__license_short__ = 'GPL version 3 (or later)'
-        self.__license_long__ = """This program is free software: you can redistribute it and/or modify
+        self._application = 'Lalikan.py'
+        self._cmd_line = 'Lalikan'
+        self._version = '0.17'
+        self._years = '2010-2013'
+        self._authors = 'Martin Zuther'
+        self._license_short = 'GPL version 3 (or later)'
+        self._license_long = """This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
@@ -70,25 +70,22 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Thank you for using free software!"""
-        self.__description__ = _('Backup scheduler for Disk ARchive (DAR)')
+        self._description = _('Backup scheduler for Disk ARchive (DAR)')
 
         # set INI file path
         if os.name == 'posix':
-            self.__config_file_path__ = os.path.expanduser('/etc/lalikan')
+            self._config_file_path = os.path.expanduser('/etc/lalikan')
         elif os.name == 'nt':
             # for the lack of a good place, look for the configuration
             # file in the application's directory
-            self.__config_file_path__ = os.path.expanduser('lalikan.conf')
+            self._config_file_path = os.path.expanduser('lalikan.conf')
         else:
-            assert(False)
+            assert False
 
-        # if INI file doesn't exist or cannot be read, ...
-        if not os.access(self.__config_file_path__, os.F_OK | os.R_OK):
-            raise IOError(_('File "%s" not found.') % self.__config_file_path__)
-
-        # read application settings from INI file
-        self.__settings__ = ConfigParser.RawConfigParser()
-        self.__settings__.read(self.__config_file_path__)
+        # parse config file
+        with open(self._config_file_path, 'rt', encoding='utf-8') as infile:
+            self._settings = configparser.ConfigParser(interpolation=None)
+            self._settings.read_file(infile)
 
 
     def __repr__(self):
@@ -102,14 +99,17 @@ Thank you for using free software!"""
 
         """
         output = ''
-        # sort and output sections
+
+        # output sorted sections
         for section in self.sections():
-            output += '\n[%s]\n' % section
-            # sort and output settings
-            for item in self.items(section):
-                output += '%s: %s\n' % (item[0], item[1])
-        # dump the whole thing
-        return output.lstrip('\n')
+            output += '\n[{section}]\n'.format(**locals())
+
+            # output sorted settings
+            for (variable, setting) in self.items(section):
+                output += '{variable}: {setting}\n'.format(**locals())
+
+        # return the whole thing
+        return output.strip()
 
 
     def get(self, section, setting, allow_empty):
@@ -125,23 +125,17 @@ Thank you for using free software!"""
         String containing the specified application setting
 
         """
-        try:
-            value = self.__settings__.get(section, setting)
-            if not value and not allow_empty:
-                raise ValueError("option '%(setting)s' in section '%(section)s' is empty" % \
-                                     {'setting': setting, 'section': section})
-            else:
-                return value
-        except ConfigParser.NoOptionError:
-            if allow_empty:
-                return ''
-            else:
-                raise ValueError("option '%(setting)s' not found in section '%(section)s'" % \
-                                     {'setting': setting, 'section': section})
+        if allow_empty:
+            value = self._settings.get(section, setting, fallback='')
+        else:
+            value = self._settings.get(section, setting)
+            assert value != ''
+
+        return value
 
 
     def items(self, section):
-        """Get all application setting names of a section
+        """Get all application setting names of a section (sorted).
 
         Keyword arguments:
         section -- string that specifies the section to be queried
@@ -150,13 +144,11 @@ Thank you for using free software!"""
         List containing application setting names of the given section
 
         """
-        items = self.__settings__.items(section)
-        items.sort()
-        return items
+        return sorted(self._settings.items(section))
 
 
     def sections(self):
-        """Get all sections.
+        """Get all sections (sorted).
 
         Keyword arguments:
         None
@@ -165,14 +157,13 @@ Thank you for using free software!"""
         List containing all section names
 
         """
-        sections = self.__settings__.sections()
-        sections.sort()
+        sections = sorted(self._settings.sections())
 
-        # move section 'default' to the top so that the default backup
+        # move section 'Default' to the top so that the default backup
         # will be run first
-        if 'default' in  sections:
-            item = sections.pop(sections.index('default'))
-            sections.insert(0, item)
+        if 'Default' in sections:
+            default_item = sections.pop(sections.index('Default'))
+            sections.insert(0, default_item)
 
         return sections
 
@@ -189,14 +180,15 @@ Thank you for using free software!"""
 
         """
         # list of variable names that may be queried (as a security measure)
-        valid_variable_names = ('application', 'cmd_line', 'version', \
-                                    'years', 'authors', 'license_short', \
-                                    'license_long', 'description')
+        valid_variable_names = ('application', 'cmd_line', 'version',
+                                'years', 'authors', 'license_short',
+                                'license_long', 'description')
 
-        if variable in valid_variable_names:
-            return eval('self.__%s__' % variable)
-        else:
-            return None
+        if variable not in valid_variable_names:
+            raise ValueError("variable '{variable}' not found".format(
+                    **locals()))
+
+        return eval('self._{variable}'.format(**locals()))
 
 
     def get_description(self, long_description):
@@ -210,14 +202,15 @@ Thank you for using free software!"""
         Formatted string containing application description
 
         """
-        description = '%(application)s v%(version)s' % \
-            {'application':self.get_variable('application'), \
-                 'version':self.get_variable('version')}
+        description = '{application} v{version}'.format(
+            application=self.get_variable('application'),
+            version=self.get_variable('version'))
+
         description += '\n' + '=' * len(description)
 
         if long_description:
-            description += '\n%(description)s' % \
-                {'description':self.get_variable('description')}
+            description += '\n{description}'.format(
+                description=self.get_variable('description'))
 
         return description
 
@@ -232,9 +225,9 @@ Thank you for using free software!"""
         Formatted string containing application copyrights
 
         """
-        return '(c) %(years)s %(authors)s' % \
-            {'years':self.get_variable('years'),\
-                 'authors':self.get_variable('authors')}
+        return '(c) {years} {authors}'.format(
+            years=self.get_variable('years'),
+            authors=self.get_variable('authors'))
 
 
     def get_license(self, long_description):
@@ -256,3 +249,9 @@ Thank you for using free software!"""
 
 # make everything available ("from Settings import *")
 settings = Settings()
+
+
+if __name__ == '__main__':
+    print()
+    print(settings)
+    print()
