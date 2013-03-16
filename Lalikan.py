@@ -1,5 +1,8 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+print('\n  Lalikan is not ready for Python 3 yet...\n')
+exit(1)
 
 """Lalikan
    =======
@@ -23,8 +26,6 @@
    Thank you for using free software!
 
 """
-
-from __future__ import print_function
 
 import datetime
 import gettext
@@ -118,8 +119,8 @@ class Lalikan:
 
     def test(self, number_of_days, interval=1.0):
         current_day = 0.0
-        debugger = {'directories': [], 'references': [], \
-                        'now': datetime.datetime.utcnow()}
+        debugger = {'directories': [], 'references': [],
+                    'now': datetime.datetime.now()}
 
         while current_day <= number_of_days:
             if current_day > 0.0:
@@ -162,8 +163,8 @@ class Lalikan:
                     self.__run(settings.sections()[0], debugger)
                 else:
                     self.__run(self.__section, debugger)
-            except OSError, e:
-                print(e)
+            except OSError as err:
+                print(err)
                 exit(1)
         elif self.__section is None:
             for self.__section in settings.sections():
@@ -171,9 +172,9 @@ class Lalikan:
 
                 try:
                     self.__run(self.__section, debugger)
-                except OSError, e:
+                except OSError as err:
                     error = True
-                    print(e)
+                    print(err)
 
                     if error:
                         self.__notify_user('At least one error has occurred!', \
@@ -181,8 +182,8 @@ class Lalikan:
         elif self.__section in settings.sections():
             try:
                 self.__run(self.__section, debugger)
-            except OSError, e:
-                print(e)
+            except OSError as err:
+                print(err)
                 exit(1)
         else:
             exit(1)
@@ -265,9 +266,9 @@ class Lalikan:
 
                 # client is online
                 return True
-            except Exception, e:
+            except Exception as err:
                 # an error occurred
-                print(e)
+                print(err)
 
         # no connection to client possible
         print('Host "%(host)s" does not listen on port %(port)s.' % \
@@ -400,7 +401,7 @@ class Lalikan:
         if debugger:
             now = debugger['now']
         else:
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now()
 
         timestamp = now.strftime(self.__database.get_date_format())
         base_name = '%s-%s' % (timestamp, backup_postfix)

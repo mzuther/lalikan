@@ -254,7 +254,7 @@ class BackupDatabase:
             if self._debugger:
                 now = self._debugger['now']
             else:
-                now = datetime.datetime.utcnow()
+                now = datetime.datetime.now()
 
             age = now - most_recent_datetime
             self._last_backup_days[backup_type] = (age.days +
@@ -271,7 +271,7 @@ class BackupDatabase:
             if self._debugger:
                 now = self._debugger['now']
             else:
-                now = datetime.datetime.utcnow()
+                now = datetime.datetime.now()
 
             time_passed = now - self._backup_start_time
             days_passed = time_passed.days + time_passed.seconds / 86400.0
@@ -509,7 +509,7 @@ if __name__ == '__main__':
     section = 'Default'
     number_of_days = 60
     interval = 4.0
-    start_time = datetime.datetime.utcnow()
+    start_time = datetime.datetime.now()
 
     print()
     settings = Settings.Settings('/etc/lalikan')
