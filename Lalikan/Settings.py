@@ -38,7 +38,7 @@ _ = gettext.lgettext
 class Settings:
     """Store user and application settings in one place and make them available.
     """
-    def __init__(self):
+    def __init__(self, config_filename):
         """Initialise user settings and application information.
 
         Keyword arguments:
@@ -71,18 +71,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 Thank you for using free software!"""
         self._description = _('Backup scheduler for Disk ARchive (DAR)')
 
-        # set INI file path
-        if os.name == 'posix':
-            self._config_file_path = os.path.expanduser('/etc/lalikan')
-        elif os.name == 'nt':
-            # for the lack of a good place, look for the configuration
-            # file in the application's directory
-            self._config_file_path = os.path.expanduser('lalikan.conf')
-        else:
-            assert False
-
         # parse config file
-        with open(self._config_file_path, 'rt', encoding='utf-8') as infile:
+        with open(config_filename, 'rt', encoding='utf-8') as infile:
             self._settings = configparser.ConfigParser(interpolation=None)
             self._settings.read_file(infile)
 
@@ -94,7 +84,7 @@ Thank you for using free software!"""
         None
 
         Return value:
-        Formatted string containing all settings from the INI file
+        Formatted string containing all options from the INI file
 
         """
         output = ''
@@ -103,44 +93,58 @@ Thank you for using free software!"""
         for section in self.sections():
             output += '\n[{section}]\n'.format(**locals())
 
-            # output sorted settings
-            for (variable, setting) in self.items(section):
-                output += '{variable}: {setting}\n'.format(**locals())
+            # output sorted options
+            for (option, value) in self.items(section):
+                output += '{option}: {value}\n'.format(**locals())
 
         # return the whole thing
         return output.strip()
 
 
-    def get(self, section, setting, allow_empty):
+    def get(self, section, option, allow_empty):
         """Get an application setting.
 
         Keyword arguments:
         section -- string that specifies the section to be queried
-        setting -- string that specifies the setting to be queried
-        allow_empty -- queried string may be empty or setting may be
+        option -- string that specifies the option to be queried
+        allow_empty -- queried string may be empty or option may be
                        non-existant
 
         Return value:
-        String containing the specified application setting
+        String containing the specified application option
 
         """
         if allow_empty:
-            value = self._settings.get(section, setting, fallback='')
+            value = self._settings.get(section, option, fallback='')
         else:
-            value = self._settings.get(section, setting)
+            value = self._settings.get(section, option)
             assert value != ''
 
         return value
 
 
-    def items(self, section):
-        """Get all application setting names of a section (sorted).
+    def options(self, section):
+        """Get all application option names of a section (sorted).
 
         Keyword arguments:
         section -- string that specifies the section to be queried
 
         Return value:
-        List containing application setting names of the given section
+        List containing application option names of the given section
+
+        """
+        return sorted(self._settings.options(section))
+
+
+    def items(self, section):
+        """Get all application options and their values of a section (sorted).
+
+        Keyword arguments:
+        section -- string that specifies the section to be queried
+
+        Return value:
+        List containing application options and their values of the
+        given section
 
         """
         return sorted(self._settings.items(section))
@@ -167,26 +171,26 @@ Thank you for using free software!"""
         return sections
 
 
-    def get_variable(self, variable):
-        """Return application describing variable as string.
+    def get_option(self, option):
+        """Return application describing option as string.
 
         Keyword arguments:
-        variable -- variable to query
+        option -- option to query
 
         Return value:
-        Formatted string containing variable's value (or None for
+        Formatted string containing option's value (or None for
         invalid queries)
 
         """
-        # list of variable names that may be queried (as a security measure)
-        valid_variable_names = ('application', 'cmd_line', 'version',
+        # list of option names that may be queried (as a security measure)
+        valid_option_names = ('application', 'cmd_line', 'version',
                                 'years', 'authors', 'license_short',
                                 'license_long', 'description')
 
-        if variable not in valid_variable_names:
-            raise ValueError('variable "{0}" not found'.format(variable))
+        if option not in valid_option_names:
+            raise ValueError('option "{0}" not found'.format(option))
 
-        return eval('self._{0}'.format(variable))
+        return eval('self._{0}'.format(option))
 
 
     def get_description(self, long_description):
@@ -201,14 +205,14 @@ Thank you for using free software!"""
 
         """
         description = '{application} v{version}'.format(
-            application=self.get_variable('application'),
-            version=self.get_variable('version'))
+            application=self.get_option('application'),
+            version=self.get_option('version'))
 
         description += '\n' + '=' * len(description)
 
         if long_description:
             description += '\n{description}'.format(
-                description=self.get_variable('description'))
+                description=self.get_option('description'))
 
         return description
 
@@ -224,8 +228,8 @@ Thank you for using free software!"""
 
         """
         return '(c) {years} {authors}'.format(
-            years=self.get_variable('years'),
-            authors=self.get_variable('authors'))
+            years=self.get_option('years'),
+            authors=self.get_option('authors'))
 
 
     def get_license(self, long_description):
@@ -240,13 +244,13 @@ Thank you for using free software!"""
 
         """
         if long_description:
-            return self.get_variable('license_long')
+            return self.get_option('license_long')
         else:
-            return self.get_variable('license_short')
+            return self.get_option('license_short')
 
 
 if __name__ == '__main__':
-    settings = Settings()
+    settings = Settings('/etc/lalikan')
 
     print()
     print(settings)

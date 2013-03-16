@@ -38,8 +38,8 @@ import time
 
 from optparse import OptionParser
 
-import BackupDatabase
-from Settings import *
+import Lalikan.BackupDatabase
+from Lalikan.Settings import *
 
 # set standard localisation for application
 locale.setlocale(locale.LC_ALL, '')
@@ -65,7 +65,7 @@ class Lalikan:
                  'license':settings.get_license(True)}
         # ... usage information and ...
         usage = 'Usage: %(cmd_line)s [options]' % \
-            {'cmd_line':settings.get_variable('cmd_line')}
+            {'cmd_line':settings.get_option('cmd_line')}
         # ... the command line parser itself
         parser = OptionParser(usage=usage, version=version_long)
 
@@ -189,7 +189,7 @@ class Lalikan:
 
 
     def __run(self, section, debugger=None):
-        self.__database = BackupDatabase.BackupDatabase( \
+        self.__database = Lalikan.BackupDatabase.BackupDatabase( \
             section, settings, debugger)
 
         if not debugger and os.name == 'posix':

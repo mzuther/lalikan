@@ -40,18 +40,16 @@ _ = gettext.lgettext
 
 
 class BackupDatabase:
-    def __init__(self, section, settings, debugger=None):
+    def __init__(self, section, settings):
         def get_setting(setting, allow_empty):
             return settings.get(section, setting, allow_empty)
+
+        self._debugger = None
 
         self._section = section
         print('selected backup "{0}"'.format(self._section))
 
-        self._debugger = debugger
-        if self._debugger:
-            self._backup_client = 'localhost'
-        else:
-            self._backup_client = get_setting('backup_client', False)
+        self._backup_client = get_setting('backup_client', False)
 
         # for local backups, a port number is not required
         port_not_required = (self._backup_client == 'localhost')
@@ -359,8 +357,11 @@ class BackupDatabase:
         return (reference_base, reference_option)
 
 
-    def test(self, number_of_days, backup_interval):
-        assert self._debugger
+    def test(self, number_of_days, backup_interval, start_datetime):
+        self._debugger = {}
+        self._debugger['directories'] = []
+        self._debugger['references'] = []
+        self._debugger['now'] = start_datetime
 
         number_of_backups = int(number_of_days / backup_interval) + 2
         current_days = [(backup_id * backup_interval)
@@ -425,14 +426,14 @@ class BackupDatabase:
                 backup_type)
 
             print()
-            now = debugger['now']
+            now = self._debugger['now']
             timestamp = now.strftime(self.get_date_format())
 
             base_name = '{timestamp}-{backup_postfix}'.format(**locals())
             catalog_name = '{0}-catalog'.format(timestamp)
 
-            debugger['directories'].append(base_name)
-            debugger['references'].append(reference_base)
+            self._debugger['directories'].append(base_name)
+            self._debugger['references'].append(reference_base)
 
             self.__delete_old_backups(backup_type)
             return True
@@ -508,15 +509,11 @@ if __name__ == '__main__':
     section = 'Default'
     number_of_days = 60
     interval = 4.0
-
-    debugger = {}
-    debugger['directories'] = []
-    debugger['references'] = []
-    debugger['now'] = datetime.datetime.utcnow()
+    start_time = datetime.datetime.utcnow()
 
     print()
-    settings = Settings.Settings()
-    bd = BackupDatabase(section, settings, debugger)
+    settings = Settings.Settings('/etc/lalikan')
+    bd = BackupDatabase(section, settings)
 
-    bd.test(number_of_days, interval)
+    bd.test(number_of_days, interval, start_time)
     print()
