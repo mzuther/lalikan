@@ -23,15 +23,6 @@ class TestSettings(unittest.TestCase):
             self.config_text = infile.read()
 
 
-    def test_repr(self):
-        config_text_sorted = '\n'.join(sorted(self.config_text.split('\n')))
-        config_text_sorted = config_text_sorted.strip()
-
-        self.assertEqual(
-            str(self.settings),
-            config_text_sorted)
-
-
     def test_get(self):
         self.assertEqual(
             self.settings.get(self.section, 'backup_client', False),
@@ -48,34 +39,42 @@ class TestSettings(unittest.TestCase):
         with self.assertRaises(configparser.NoOptionError):
             self.settings.get(self.section, 'XXXXXX_database', False)
 
+        with self.assertRaises(configparser.NoSectionError):
+            self.settings.get('no_section', 'backup_database', False)
+
 
     def test_options(self):
-        options_sorted = []
-        for option in sorted(self.config_text.split('\n')):
-            if ':' in option:
-                options_sorted.append(option[:option.find(':')])
+        options = []
+        for option in self.config_text.split('\n'):
+            if option.startswith('[D'):
+                break
+            elif ':' in option:
+                options.append(option[:option.find(':')])
+
 
         self.assertEqual(
             self.settings.options(self.section),
-            options_sorted)
+            sorted(options, key=str.lower))
 
 
     def test_items(self):
-        items_sorted = []
-        for item in sorted(self.config_text.split('\n')):
-            if ':' in item:
+        items = []
+        for item in self.config_text.split('\n'):
+            if item.startswith('[D'):
+                break
+            elif ':' in item:
                 item = tuple(item.split(': ', 1))
-                items_sorted.append(item)
+                items.append(item)
 
         self.assertEqual(
             self.settings.items(self.section),
-            items_sorted)
+            sorted(items, key=lambda i: str.lower(i[0])))
 
 
     def test_sections(self):
         self.assertEqual(
             self.settings.sections(),
-            ['Test'])
+            ['Default', 'aaa', 'Test', 'zzz'])
 
 
     def test_get_option(self):

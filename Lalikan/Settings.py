@@ -133,7 +133,7 @@ Thank you for using free software!"""
         List containing application option names of the given section
 
         """
-        return sorted(self._settings.options(section))
+        return sorted(self._settings.options(section), key=str.lower)
 
 
     def items(self, section):
@@ -147,7 +147,8 @@ Thank you for using free software!"""
         given section
 
         """
-        return sorted(self._settings.items(section))
+        items = self._settings.items(section)
+        return sorted(items, key=lambda i: str.lower(i[0]))
 
 
     def sections(self):
@@ -160,7 +161,7 @@ Thank you for using free software!"""
         List containing all section names
 
         """
-        sections = sorted(self._settings.sections())
+        sections = sorted(self._settings.sections(), key=str.lower)
 
         # move section 'Default' to the top so that the default backup
         # will be run first
