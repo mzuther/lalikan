@@ -26,12 +26,16 @@
 
 import unittest
 
+import Lalikan.UnitTest.BackupDatabase
 import Lalikan.UnitTest.Settings
 
 
 if __name__ == '__main__':
     verbosity = 0
     test_runner = unittest.TextTestRunner(verbosity=verbosity)
+
+    print('\nLalikan.BackupDatabase')
+    test_runner.run(Lalikan.UnitTest.BackupDatabase.get_suite())
 
     print('\nLalikan.Settings')
     test_runner.run(Lalikan.UnitTest.Settings.get_suite())

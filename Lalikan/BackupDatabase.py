@@ -28,7 +28,7 @@ import gettext
 import os
 import re
 
-import Settings
+import Lalikan.Settings
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))
@@ -43,11 +43,8 @@ class BackupDatabase:
             return settings.get(section, setting, allow_empty)
 
         self._debugger = None
-
-        self._section = section
-        print('selected backup "{0}"'.format(self._section))
-
         self._backup_schedule = None
+        self._section = section
 
         self._backup_client = get_setting('backup_client', False)
 
@@ -612,13 +609,14 @@ class BackupDatabase:
 
 if __name__ == '__main__':
     config_file = 'UnitTest/test.ini'
-    section = 'Test'
+    section = 'Test1'
     number_of_days = 60
     interval = 4.0
     start_time = datetime.datetime.now()
 
     print()
     settings = Settings.Settings(config_file)
+    print('selected backup "{0}"'.format(section))
     bd = BackupDatabase(section, settings)
 
     print()

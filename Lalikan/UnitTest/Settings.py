@@ -17,7 +17,7 @@ class TestSettings(unittest.TestCase):
         module_path = os.path.dirname(os.path.realpath(__file__))
         self.config_filename = os.path.join(module_path, 'test.ini')
         self.settings = Lalikan.Settings.Settings(self.config_filename)
-        self.section = 'Test'
+        self.section = 'Test1'
 
         with open(self.config_filename, 'rt', encoding='utf-8') as infile:
             self.config_text = infile.read()
@@ -30,7 +30,7 @@ class TestSettings(unittest.TestCase):
 
         self.assertEqual(
             self.settings.get(self.section, 'backup_database', False),
-            'test/test.dat')
+            'test1/test1.dat')
 
         self.assertEqual(
             self.settings.get(self.section, 'XXXXXX_database', True),
@@ -46,7 +46,7 @@ class TestSettings(unittest.TestCase):
     def test_options(self):
         options = []
         for option in self.config_text.split('\n'):
-            if option.startswith('[D'):
+            if option == '[Test2]':
                 break
             elif ':' in option:
                 options.append(option[:option.find(':')])
@@ -60,7 +60,7 @@ class TestSettings(unittest.TestCase):
     def test_items(self):
         items = []
         for item in self.config_text.split('\n'):
-            if item.startswith('[D'):
+            if item == '[Test2]':
                 break
             elif ':' in item:
                 item = tuple(item.split(': ', 1))
@@ -74,7 +74,7 @@ class TestSettings(unittest.TestCase):
     def test_sections(self):
         self.assertEqual(
             self.settings.sections(),
-            ['Default', 'aaa', 'Test', 'zzz'])
+            ['Default', 'aaa', 'Test1', 'Test2', 'zzz'])
 
 
     def test_get_option(self):
