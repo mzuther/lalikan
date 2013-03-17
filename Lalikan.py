@@ -61,12 +61,12 @@ class Lalikan:
     def __init__(self):
         # initialise version information, ...
         version_long = _('%(description)s\n%(copyrights)s\n\n%(license)s') % \
-            {'description':settings.get_description(True), \
-                 'copyrights':settings.get_copyrights(), \
-                 'license':settings.get_license(True)}
+            {'description': settings.get_description(True), \
+                 'copyrights': settings.get_copyrights(), \
+                 'license': settings.get_license(True)}
         # ... usage information and ...
         usage = 'Usage: %(cmd_line)s [options]' % \
-            {'cmd_line':settings.get_option('cmd_line')}
+            {'cmd_line': settings.get_option('cmd_line')}
         # ... the command line parser itself
         parser = OptionParser(usage=usage, version=version_long)
 
@@ -305,7 +305,7 @@ class Lalikan:
                         # keep looping to find *all* empty directories
                         repeat = True
                         print(_('removing empty directory "%(directory)s"') % \
-                            {'directory':root})
+                            {'directory': root})
                         # delete empty directory
                         os.rmdir(root)
 

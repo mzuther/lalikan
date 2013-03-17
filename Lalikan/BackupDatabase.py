@@ -47,6 +47,8 @@ class BackupDatabase:
         self._section = section
         print('selected backup "{0}"'.format(self._section))
 
+        self._backup_schedule = None
+
         self._backup_client = get_setting('backup_client', False)
 
         # for local backups, a port number is not required
@@ -141,6 +143,115 @@ class BackupDatabase:
         return self._command_post_run
 
 
+    def calculate_backup_schedule(self, current_datetime):
+        # try to re-use old calculation
+        if self._backup_schedule is not None:
+            # check whether old calculation is valid for given date;
+            # "self._backup_schedule" starts with last scheduled
+            # "full" backup and ends with upcoming "full" backup
+            if (self._backup_schedule[0][1]
+                    <= current_datetime
+                    < self._backup_schedule[-1][1]):
+                return self._backup_schedule
+
+        # initialise dict to hold scheduled backup times
+        backup_start_times = {}
+        for backup_type in self._backup_types:
+            postfix = self.get_backup_postfix(backup_type)
+            backup_start_times[postfix] = []
+
+        # initialise variables to calculate all scheduled "full"
+        # backups until given date
+        current_backup_start_time = self._backup_start_time
+        backup_end_time = current_datetime
+        delta = datetime.timedelta(self._backup_interval['full'])
+
+        # calculate all scheduled "full" backups until given date
+        while current_backup_start_time <= backup_end_time:
+            backup_start_times['full'].append(current_backup_start_time)
+            current_backup_start_time += delta
+
+        # calculate upcoming "full" backup
+        backup_start_times['full'].append(current_backup_start_time)
+
+        # found one or more scheduled "full" backups prior to given
+        # date
+        if len(backup_start_times['full']) > 1:
+            # skip all scheduled backups except for last "full" backup
+            # and upcoming "full" backup
+            backup_start_times['full'] = backup_start_times['full'][-2:]
+
+            # copy limits for "differential" backups from "full"
+            # backups (will be removed later on)
+            backup_start_times['diff'] = backup_start_times['full'][:]
+
+            # initialise variables to calculate all scheduled
+            # "differential" backups until given date
+            current_backup_start_time = backup_start_times['diff'][0]
+            backup_end_time = backup_start_times['diff'][-1]
+            delta = datetime.timedelta(self._backup_interval['differential'])
+
+            # move one backup cycle from last scheduled "full" backup
+            current_backup_start_time += delta
+
+            # calculate all scheduled "differential" backups between
+            # last scheduled "full" backup and upcoming "full" backup
+            while current_backup_start_time < backup_end_time:
+                # insert values in the list's middle
+                backup_start_times['diff'].insert(-1, current_backup_start_time)
+                current_backup_start_time += delta
+
+            # calculate all scheduled "incremental" backups between
+            # scheduled "full" and "differential" backups
+            for n in range(len(backup_start_times['diff'][:-1])):
+                # initialise variables to calculate all scheduled
+                # "incremental" backups until given date
+                current_backup_start_time = backup_start_times['diff'][n]
+                backup_end_time = backup_start_times['diff'][n + 1]
+                delta = datetime.timedelta(self._backup_interval['incremental'])
+
+                # move one backup cycle from last scheduled "full" or
+                # "differential" backup
+                current_backup_start_time += delta
+
+                # calculate all scheduled "incremental" backups
+                # between scheduled "full" or "incremental" backups
+                while current_backup_start_time < backup_end_time:
+                    backup_start_times['incr'].append(current_backup_start_time)
+                    current_backup_start_time += delta
+
+            # remove "full" backup limits from "differential" backups
+            backup_start_times['diff'] = backup_start_times['diff'][1:-1]
+
+        # consolidate backup start times into a single list
+        consolidation = []
+        for backup_type in self._backup_types:
+            postfix = self.get_backup_postfix(backup_type)
+            for backup_start_time in backup_start_times[postfix]:
+                consolidation.append((postfix, backup_start_time))
+
+        # sort consolidated backup start times by date
+        self._backup_schedule = sorted(consolidation, key=lambda k: k[1])
+
+        # make consolidated result read-only
+        self._backup_schedule = tuple(self._backup_schedule)
+
+        # return consolidated backup start times
+        return self._backup_schedule
+
+
+    def last_backup(self, current_datetime):
+        self.calculate_backup_schedule(current_datetime)
+
+        last_backup = {'full': None, 'diff': None, 'incr': None}
+        for backup_type, backup_start_time in self._backup_schedule:
+            if backup_start_time < current_datetime:
+                last_backup[backup_type] = backup_start_time
+
+        return last_backup
+
+    # ----- OLD CODE -----
+
     def need_backup(self, force_backup):
         for backup_type in self._backup_types:
             if self._last_backup(backup_type) < 0:
@@ -151,6 +262,7 @@ class BackupDatabase:
             return 'incremental (forced)'
         else:
             return 'none'
+
 
     def _last_backup(self, backup_type):
         self._check_backup_type(backup_type)
@@ -179,7 +291,7 @@ class BackupDatabase:
             return backup_due - backup_last
 
 
-    def find_old_backups(self, backup_type, prior_date):
+    def find_old_backups(self, backup_type, prior_date=None):
         self._check_backup_type(backup_type)
 
         backup_postfix = self._backup_postfixes[backup_type]
@@ -192,6 +304,7 @@ class BackupDatabase:
         else:
             for item in os.listdir(self._backup_directory):
                 item_full = os.path.join(self._backup_directory, item)
+
                 # only add item if is a directory ...
                 if os.path.isdir(item_full):
                     # ... which name matches the date/postfix regex ...
@@ -200,6 +313,7 @@ class BackupDatabase:
                         catalog_name = '{0}-catalog.01.dar'.format(timestamp)
                         catalog_full = os.path.join(self._backup_directory,
                                                     item, catalog_name)
+
                         # ... and which contains a readable catalog file
                         if os.access(catalog_full, os.R_OK):
                             directories.append(item)
@@ -496,68 +610,6 @@ class BackupDatabase:
             return
 
 
-    def calculate_start_times(self, current_datetime):
-        current_backup_start_time = self._backup_start_time
-        backup_end_time = current_datetime
-        delta = datetime.timedelta(self._backup_interval['full'])
-
-        backup_start_times = {}
-        backup_start_times['full'] = [current_backup_start_time]
-        backup_start_times['diff'] = []
-        backup_start_times['incr'] = []
-
-        while current_backup_start_time <= backup_end_time:
-            current_backup_start_time += delta
-            backup_start_times['full'].append(current_backup_start_time)
-
-        if len(backup_start_times['full']) >= 2:
-            # limit backups to current point of time
-            backup_start_times['full'] = backup_start_times['full'][-2:]
-
-            # copy limits from "full" backups
-            backup_start_times['diff'] = backup_start_times['full'][:]
-
-            current_backup_start_time = backup_start_times['diff'][-2]
-            backup_end_time = backup_start_times['diff'][-1]
-            delta = datetime.timedelta(self._backup_interval['differential'])
-
-            current_backup_start_time += delta
-            while current_backup_start_time < backup_end_time:
-                backup_start_times['diff'].insert(-1, current_backup_start_time)
-                current_backup_start_time += delta
-
-            for n in range(len(backup_start_times['diff'][:-1])):
-                current_backup_start_time = backup_start_times['diff'][n]
-                backup_end_time = backup_start_times['diff'][n + 1]
-                delta = datetime.timedelta(self._backup_interval['incremental'])
-
-                current_backup_start_time += delta
-                while current_backup_start_time < backup_end_time:
-                    backup_start_times['incr'].append(current_backup_start_time)
-                    current_backup_start_time += delta
-
-            # remove limits of "full" backups
-            backup_start_times['diff'] = backup_start_times['diff'][1:-1]
-
-        output = []
-        for backup_type in ['full', 'diff', 'incr']:
-            for backup_start_time in backup_start_times[backup_type]:
-                output.append((backup_type, backup_start_time))
-
-        return sorted(output, key=lambda k: k[1])
-
-
-    def last_backup(self, current_datetime):
-        backup_start_times = self.calculate_start_times(current_datetime)
-
-        last_backup = {'full': None, 'diff': None, 'incr': None}
-        for backup_type, backup_start_time in backup_start_times:
-            if backup_start_time < current_datetime:
-                last_backup[backup_type] = backup_start_time
-
-        return last_backup
-
-
 if __name__ == '__main__':
     config_file = 'UnitTest/test.ini'
     section = 'Test'
@@ -571,7 +623,7 @@ if __name__ == '__main__':
 
     print()
     current_datetime = datetime.datetime.now()
-    backup_start_times = bd.calculate_start_times(current_datetime)
+    backup_start_times = bd.calculate_backup_schedule(current_datetime)
     last_backup = bd.last_backup(current_datetime)
 
     for backup_type, backup_start_time in backup_start_times:
@@ -579,8 +631,12 @@ if __name__ == '__main__':
     print()
 
     print('now  -->', current_datetime)
-    for backup_type in ['full', 'diff', 'incr']:
+    for backup_type in ('full', 'diff', 'incr'):
         print(backup_type, '-->', last_backup[backup_type])
+
+    #print()
+    #for backup_date in bd.find_old_backups('incremental'):
+    #    print('*', backup_date)
 
     #bd.test(number_of_days, interval, start_time)
     print()
