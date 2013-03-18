@@ -19,6 +19,85 @@ class TestBackupDatabase(unittest.TestCase):
         self.settings = Lalikan.Settings.Settings(self.config_filename)
 
 
+    def test_check_backup_type(self):
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test1', self.settings)
+
+        database._check_backup_type('full')
+        database._check_backup_type('incremental')
+        database._check_backup_type('differential')
+
+        with self.assertRaises(ValueError):
+            database._check_backup_type('incr')
+
+        with self.assertRaises(ValueError):
+            database._check_backup_type('diff')
+
+        with self.assertRaises(ValueError):
+            database._check_backup_type('XXXX')
+
+
+    def test_get_settings(self):
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test1', self.settings)
+
+        self.assertEqual(
+            database.get_backup_client(),
+            'localhost')
+
+        self.assertEqual(
+            database.get_backup_client_port(),
+            '1234')
+
+        self.assertEqual(
+            database.get_path_to_dar(),
+            '/usr/local/bin/dar')
+
+        self.assertEqual(
+            database.get_path_to_dar_manager(),
+            '/usr/local/bin/dar_manager')
+
+        self.assertEqual(
+            database.get_backup_options(),
+            '--noconf --batch /etc/darrc --verbose=skipped')
+
+        self.assertEqual(
+            database.get_backup_interval('full'),
+            9.5)
+
+        self.assertEqual(
+            database.get_backup_interval('differential'),
+            4.0)
+
+        self.assertEqual(
+            database.get_backup_interval('incremental'),
+            1.0)
+
+        self.assertEqual(
+            database.get_backup_postfix('differential'),
+            'diff')
+
+        self.assertEqual(
+            database.get_backup_directory(),
+            '/tmp/lalikan/test1')
+
+        self.assertEqual(
+            database.get_database(),
+            '/tmp/lalikan/test1/test1.dat')
+
+        self.assertEqual(
+            database.get_date_format(),
+            '%Y-%m-%d_%H%M')
+
+        self.assertEqual(
+            database.get_pre_run_command(),
+            'sudo mount -o remount,rw /mnt/backup/')
+
+        self.assertEqual(
+            database.get_post_run_command(),
+            'sudo mount -o remount,ro /mnt/backup/')
+
+
     def __calculate_backup_schedule(self, section, current_datetime,
                                     expected_result):
         database = Lalikan.BackupDatabase.BackupDatabase(

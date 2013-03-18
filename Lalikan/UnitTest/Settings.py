@@ -30,7 +30,7 @@ class TestSettings(unittest.TestCase):
 
         self.assertEqual(
             self.settings.get(self.section, 'backup_database', False),
-            'test1/test1.dat')
+            '/tmp/lalikan/test1/test1.dat')
 
         self.assertEqual(
             self.settings.get(self.section, 'XXXXXX_database', True),
