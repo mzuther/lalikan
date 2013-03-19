@@ -247,6 +247,69 @@ class BackupDatabase:
 
         return last_backup
 
+
+    def find_old_backups(self, prior_date=None):
+        # prepare regex to filter valid backups
+        regex_backup_postfixes = '|'.join(self._backup_postfixes.values())
+        regex = re.compile('^({0})-({1})$'.format(self._date_regex,
+                                                  regex_backup_postfixes))
+
+        # look for created backups (either real or simulated)
+        found_backups = []
+        if self._debugger:
+            pass  # TODO
+        #     for item in self._debugger['directories']:
+        #         if regex.match(item):
+        #             found_backups.append(item)
+        else:
+            # find all subdirectories in backup directory
+            for dirname in os.listdir(self._backup_directory):
+                # convert found path to absolute path
+                full_path = os.path.join(self._backup_directory, dirname)
+
+                # check whether found path is a directory ...
+                if os.path.isdir(full_path):
+                    # ... which name matches the date/postfix regex
+                    m = regex.match(dirname)
+
+                    # extract path composition from matching paths
+                    if m is not None:
+                        (timestamp, postfix) = m.groups()
+
+                        # prepare search for backup catalog
+                        catalog_name = '{0}-catalog.01.dar'.format(timestamp)
+                        catalog_full = os.path.join(full_path, catalog_name)
+
+                        # look for readable catalog file
+                        if os.access(catalog_full, os.R_OK):
+                            # regard path as valid backup
+                            found_backups.append((timestamp, postfix))
+
+        # sort found backups by path
+        found_backups.sort(key=lambda i: str.lower(i[0]))
+
+        # optinally filter found backups by date
+        if isinstance(prior_date, datetime.datetime):
+            found_backups_old = found_backups
+            found_backups = []
+
+            # loop over found backups
+            for found_backup in found_backups_old:
+                # convert timestamp to "datetime" object
+                timestamp = found_backup[0]
+                backup_date = datetime.datetime.strptime(
+                    timestamp, self._date_format)
+
+                # keep backups prior to given date
+                if backup_date < prior_date:
+                    found_backups.append(found_backup)
+
+        # make result read-only
+        found_backups = tuple(found_backups)
+
+        #return result
+        return found_backups
+
     # ----- OLD CODE -----
 
     def need_backup(self, force_backup):
@@ -286,49 +349,6 @@ class BackupDatabase:
         # scheduled date
         else:
             return backup_due - backup_last
-
-
-    def find_old_backups(self, backup_type, prior_date=None):
-        self._check_backup_type(backup_type)
-
-        backup_postfix = self._backup_postfixes[backup_type]
-        regex = re.compile('^{0}-{1}$'.format(self._date_regex, backup_postfix))
-        directories = []
-        if self._debugger:
-            for item in self._debugger['directories']:
-                if regex.match(item):
-                    directories.append(item)
-        else:
-            for item in os.listdir(self._backup_directory):
-                item_full = os.path.join(self._backup_directory, item)
-
-                # only add item if is a directory ...
-                if os.path.isdir(item_full):
-                    # ... which name matches the date/postfix regex ...
-                    if regex.match(item):
-                        timestamp = item.rsplit('-', 1)[0]
-                        catalog_name = '{0}-catalog.01.dar'.format(timestamp)
-                        catalog_full = os.path.join(self._backup_directory,
-                                                    item, catalog_name)
-
-                        # ... and which contains a readable catalog file
-                        if os.access(catalog_full, os.R_OK):
-                            directories.append(item)
-
-        directories.sort()
-
-        if isinstance(prior_date, datetime.datetime):
-            old_directories = directories
-            directories = []
-
-            for item in old_directories:
-                item_date = item[:-len(backup_postfix) - 1]
-                item_date = datetime.datetime.strptime(
-                    item_date, self._date_format)
-                if item_date < prior_date:
-                    directories.append(item)
-
-        return directories
 
 
     def name_of_last_backup(self, backup_type):

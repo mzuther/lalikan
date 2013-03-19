@@ -39,3 +39,5 @@ if __name__ == '__main__':
 
     print('\nLalikan.Settings')
     test_runner.run(Lalikan.UnitTest.Settings.get_suite())
+
+    print()

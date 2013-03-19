@@ -2,6 +2,7 @@
 
 import datetime
 import os.path
+import shutil
 import unittest
 
 import Lalikan.BackupDatabase
@@ -98,11 +99,8 @@ class TestBackupDatabase(unittest.TestCase):
             'sudo mount -o remount,ro /mnt/backup/')
 
 
-    def __calculate_backup_schedule(self, section, current_datetime,
+    def __calculate_backup_schedule(self, database, current_datetime,
                                     expected_result):
-        database = Lalikan.BackupDatabase.BackupDatabase(
-            section, self.settings)
-
         backup_schedule = database.calculate_backup_schedule(current_datetime)
 
         result = '\n'
@@ -114,24 +112,20 @@ class TestBackupDatabase(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
 
-    def test_calculate_backup_schedule_1_1(self):
-        # just before first scheduled "full" backup
-        section = 'Test1'
-        current_datetime = datetime.datetime(2012, 1, 1, 19, 59)
+    def test_calculate_backup_schedule_1(self):
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test1', self.settings)
 
+        # just before first scheduled "full" backup
+        current_datetime = datetime.datetime(2012, 1, 1, 19, 59)
         expected_result = """
 full:  2012-01-01 20:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_1_2(self):
         # exactly at first scheduled "full" backup
-        section = 'Test1'
         current_datetime = datetime.datetime(2012, 1, 1, 20, 0)
-
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 20:00:00
@@ -145,16 +139,11 @@ diff:  2012-01-09 20:00:00
 incr:  2012-01-10 20:00:00
 full:  2012-01-11 08:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_1_3(self):
         # just before second scheduled "full" backup
-        section = 'Test1'
         current_datetime = datetime.datetime(2012, 1, 11, 7, 59)
-
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 20:00:00
@@ -168,16 +157,11 @@ diff:  2012-01-09 20:00:00
 incr:  2012-01-10 20:00:00
 full:  2012-01-11 08:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_1_4(self):
         # exactly at second scheduled "full" backup
-        section = 'Test1'
         current_datetime = datetime.datetime(2012, 1, 11, 8, 0)
-
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 08:00:00
@@ -191,16 +175,11 @@ diff:  2012-01-19 08:00:00
 incr:  2012-01-20 08:00:00
 full:  2012-01-20 20:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_1_5(self):
         # after second scheduled "full" backup
-        section = 'Test1'
         current_datetime = datetime.datetime(2012, 1, 12, 11, 59)
-
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 08:00:00
@@ -215,28 +194,24 @@ incr:  2012-01-20 08:00:00
 full:  2012-01-20 20:00:00
 """
 
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
 
-    def test_calculate_backup_schedule_2_1(self):
-        # just before first scheduled "full" backup
-        section = 'Test2'
-        current_datetime = datetime.datetime(2012, 1, 1, 19, 59)
+    def test_calculate_backup_schedule_2(self):
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test2', self.settings)
 
+        # just before first scheduled "full" backup
+        current_datetime = datetime.datetime(2012, 1, 1, 19, 59)
         expected_result = """
 full:  2012-01-01 20:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_2_2(self):
         # exactly at first scheduled "full" backup
-        section = 'Test2'
         current_datetime = datetime.datetime(2012, 1, 1, 20, 0)
-
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 17:36:00
@@ -253,16 +228,11 @@ incr:  2012-01-10 08:00:00
 incr:  2012-01-11 05:36:00
 full:  2012-01-11 08:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_2_3(self):
         # just before second scheduled "full" backup
-        section = 'Test2'
         current_datetime = datetime.datetime(2012, 1, 11, 7, 59)
-
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 17:36:00
@@ -279,16 +249,11 @@ incr:  2012-01-10 08:00:00
 incr:  2012-01-11 05:36:00
 full:  2012-01-11 08:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_2_4(self):
         # exactly at second scheduled "full" backup
-        section = 'Test2'
         current_datetime = datetime.datetime(2012, 1, 11, 8, 0)
-
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 05:36:00
@@ -305,16 +270,11 @@ incr:  2012-01-19 20:00:00
 incr:  2012-01-20 17:36:00
 full:  2012-01-20 20:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
 
-
-    def test_calculate_backup_schedule_2_5(self):
         # after second scheduled "full" backup
-        section = 'Test2'
         current_datetime = datetime.datetime(2012, 1, 12, 11, 59)
-
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 05:36:00
@@ -331,9 +291,64 @@ incr:  2012-01-19 20:00:00
 incr:  2012-01-20 17:36:00
 full:  2012-01-20 20:00:00
 """
-
-        self.__calculate_backup_schedule(section, current_datetime,
+        self.__calculate_backup_schedule(database, current_datetime,
                                          expected_result)
+
+
+    def test_find_old_backups(self):
+        def simulate_backup(timestamp, postfix, has_files, has_catalog):
+            dirname = '{timestamp}-{postfix}'.format(**locals())
+            full_path = os.path.join(backup_directory, dirname)
+            os.makedirs(full_path)
+
+            if has_files:
+                os.mknod(os.path.join(full_path, dirname + '.01.dar'))
+                os.mknod(os.path.join(full_path, dirname + '.01.dar.md5'))
+
+                if has_catalog:
+                    os.mknod(os.path.join(
+                            full_path, timestamp + '-catalog.01.dar'))
+
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test1', self.settings)
+        backup_directory = database.get_backup_directory()
+
+        assert not os.path.exists(backup_directory)
+        os.makedirs(backup_directory)
+
+        try:
+            self.assertEqual(
+                database.find_old_backups(),
+                ())
+
+            # valid (but faked) backups
+            faked_backups = (
+                ('2012-01-02_0201', 'full'),
+                ('2012-01-03_2000', 'incr'),
+                ('2012-01-04_2134', 'incr'),
+                ('2012-01-05_1234', 'diff'),
+                ('2012-01-05_2134', 'incr'),
+            )
+
+            for (timestamp, postfix) in faked_backups:
+                simulate_backup(timestamp, postfix, True, True)
+
+            # these are NOT valid backups!
+            simulate_backup('short', 'full', False, False)
+            simulate_backup('pretty-long_with_1234567890', 'full', False, False)
+            simulate_backup('2012-01-02_0403', 'full', False, False)
+            simulate_backup('2012-01-03_0403', 'incr', True, False)
+            simulate_backup('2012-01-04_0403', 'diff', False, True)
+
+            self.assertEqual(
+                database.find_old_backups(),
+                faked_backups)
+
+            self.assertEqual(
+                database.find_old_backups(datetime.datetime(2012, 1, 5)),
+                faked_backups[:3])
+        finally:
+            shutil.rmtree(backup_directory)
 
 
 def get_suite():
