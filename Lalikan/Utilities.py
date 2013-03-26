@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """Lalikan
@@ -24,22 +23,21 @@
 
 """
 
-import unittest
+import gettext
+import os
 
-import Lalikan.UnitTest.BackupDatabase
-import Lalikan.UnitTest.Settings
+# initialise localisation settings
+module_path = os.path.dirname(os.path.realpath(__file__))
+gettext.bindtextdomain('Lalikan', os.path.join(module_path, 'po/'))
+gettext.textdomain('Lalikan')
+_ = gettext.lgettext
 
 
-if __name__ == '__main__':
-
-    def run_tests(module_name, module_import):
-        verbosity = 0
-        test_runner = unittest.TextTestRunner(verbosity=verbosity)
-
-        print('\n' + module_name)
-        eval('test_runner.run({0}.get_suite())'.format(module_import))
-
-    run_tests('Lalikan.BackupDatabase', 'Lalikan.UnitTest.BackupDatabase')
-    run_tests('Lalikan.Settings', 'Lalikan.UnitTest.Settings')
-
-    print()
+# "@memoize" decorator; please not that it ignores **kwargs!
+def memoize(function):
+    memoize_cache = {}
+    def wrapper(*args):
+        if args not in memoize_cache:
+            memoize_cache[args] = function(*args)
+        return memoize_cache[args]
+    return wrapper

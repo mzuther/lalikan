@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-print('\n  Lalikan is not ready for Python 3 yet...\n')
-exit(1)
-
 """Lalikan
    =======
    Backup scheduler for Disk ARchive (DAR)
@@ -35,6 +32,7 @@ import os
 import re
 import socket
 import subprocess
+import sys
 import time
 
 from optparse import OptionParser
@@ -687,6 +685,13 @@ class Lalikan:
 
 
 if __name__ == '__main__':
+    python_version = sys.version_info.major + sys.version_info.minor / 10
+    error_string = 'Lalikan does not run on Python {0}.'.format(python_version)
+    assert 3.0 < python_version <= 3.9, error_string
+
+    print('\n  Lalikan is not ready for Python 3 yet...\n')
+    exit(1)
+
     lalikan = Lalikan()
 
     DEBUG = False

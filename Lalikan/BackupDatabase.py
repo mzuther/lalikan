@@ -29,6 +29,7 @@ import os
 import re
 
 import Lalikan.Settings
+import Lalikan.Utilities
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))
@@ -140,6 +141,7 @@ class BackupDatabase:
         return self._command_post_run
 
 
+    @Lalikan.Utilities.memoize
     def calculate_backup_schedule(self, current_datetime):
         # try to re-use old calculation
         if self._backup_schedule is not None:
@@ -237,15 +239,16 @@ class BackupDatabase:
         return self._backup_schedule
 
 
-    def last_backup(self, current_datetime):
+    @Lalikan.Utilities.memoize
+    def last_scheduled_backup(self, current_datetime):
         self.calculate_backup_schedule(current_datetime)
 
-        last_backup = {'full': None, 'diff': None, 'incr': None}
+        last_scheduled_backup = {'full': None, 'diff': None, 'incr': None}
         for backup_type, backup_start_time in self._backup_schedule:
             if backup_start_time < current_datetime:
-                last_backup[backup_type] = backup_start_time
+                last_scheduled_backup[backup_type] = backup_start_time
 
-        return last_backup
+        return last_scheduled_backup
 
 
     def find_old_backups(self, prior_date=None):

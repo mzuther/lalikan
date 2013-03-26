@@ -317,6 +317,13 @@ full:  2012-01-20 20:00:00
         os.makedirs(backup_directory)
 
         try:
+            # these are NOT valid backups!
+            simulate_backup('short', 'full', False, False)
+            simulate_backup('pretty-long_with_1234567890', 'full', False, False)
+            simulate_backup('2012-01-02_0403', 'full', False, False)
+            simulate_backup('2012-01-03_0403', 'incr', True, False)
+            simulate_backup('2012-01-04_0403', 'diff', False, True)
+
             self.assertEqual(
                 database.find_old_backups(),
                 ())
@@ -332,13 +339,6 @@ full:  2012-01-20 20:00:00
 
             for (timestamp, postfix) in faked_backups:
                 simulate_backup(timestamp, postfix, True, True)
-
-            # these are NOT valid backups!
-            simulate_backup('short', 'full', False, False)
-            simulate_backup('pretty-long_with_1234567890', 'full', False, False)
-            simulate_backup('2012-01-02_0403', 'full', False, False)
-            simulate_backup('2012-01-03_0403', 'incr', True, False)
-            simulate_backup('2012-01-04_0403', 'diff', False, True)
 
             self.assertEqual(
                 database.find_old_backups(),
