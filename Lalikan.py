@@ -581,6 +581,8 @@ class Lalikan:
                 self.__database.get_backup_directory(), basename)
             for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
                 os.unlink(backup_file)
+            for checksum_file in glob.glob(os.path.join(base_directory, '*.dar.md5')):
+                os.unlink(checksum_file)
 
             cmd = '%(dar_manager)s --base %(database)s --list -Q' % \
                 {'dar_manager': self.__database.get_path_to_dar_manager(), \

@@ -24,6 +24,7 @@
 
 """
 
+import sys
 import unittest
 
 import Lalikan.UnitTest.BackupDatabase
@@ -39,7 +40,25 @@ if __name__ == '__main__':
         print('\n' + module_name)
         eval('test_runner.run({0}.get_suite())'.format(module_import))
 
-    run_tests('Lalikan.BackupDatabase', 'Lalikan.UnitTest.BackupDatabase')
-    run_tests('Lalikan.Settings', 'Lalikan.UnitTest.Settings')
+    valid_tests = {
+        'Lalikan.BackupDatabase': 'Lalikan.UnitTest.BackupDatabase',
+        'Lalikan.Settings': 'Lalikan.UnitTest.Settings',
+    }
+
+    specified_tests = sorted(set(sys.argv[1:]))
+    for test_suite in specified_tests:
+        if test_suite not in valid_tests:
+            print('\nNo test suite found for module "{0}".'.format(test_suite))
+            print('Valid tests are:\n')
+            for key in sorted(valid_tests):
+                print('* ' + key)
+            print()
+            exit(1)
+
+    if len(specified_tests) == 0:
+        specified_tests = sorted(set(valid_tests))
+
+    for test_suite in specified_tests:
+        run_tests(test_suite, valid_tests[test_suite])
 
     print()
