@@ -130,10 +130,10 @@ Thank you for using free software!"""
         section -- string that specifies the section to be queried
 
         Return value:
-        List containing application option names of the given section
+        Tuple containing application option names of the given section
 
         """
-        return sorted(self._settings.options(section), key=str.lower)
+        return tuple(sorted(self._settings.options(section), key=str.lower))
 
 
     def items(self, section):
@@ -143,12 +143,12 @@ Thank you for using free software!"""
         section -- string that specifies the section to be queried
 
         Return value:
-        List containing application options and their values of the
+        Tuple containing application options and their values of the
         given section
 
         """
         items = self._settings.items(section)
-        return sorted(items, key=lambda i: str.lower(i[0]))
+        return tuple(sorted(items, key=lambda i: str.lower(i[0])))
 
 
     def sections(self):
@@ -158,7 +158,7 @@ Thank you for using free software!"""
         None
 
         Return value:
-        List containing all section names
+        Tuple containing all section names
 
         """
         sections = sorted(self._settings.sections(), key=str.lower)
@@ -169,7 +169,7 @@ Thank you for using free software!"""
             default_item = sections.pop(sections.index('Default'))
             sections.insert(0, default_item)
 
-        return sections
+        return tuple(sections)
 
 
     def get_option(self, option):
@@ -183,7 +183,7 @@ Thank you for using free software!"""
         invalid queries)
 
         """
-        # list of option names that may be queried (as a security measure)
+        # tuple of option names that may be queried (as a security measure)
         valid_option_names = ('application', 'cmd_line', 'version',
                                 'years', 'authors', 'license_short',
                                 'license_long', 'description')

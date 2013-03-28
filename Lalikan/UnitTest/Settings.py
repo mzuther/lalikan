@@ -52,9 +52,9 @@ class TestSettings(unittest.TestCase):
                 options.append(option[:option.find(':')])
 
 
-        self.assertEqual(
+        self.assertTupleEqual(
             self.settings.options(self.section),
-            sorted(options, key=str.lower))
+            tuple(sorted(options, key=str.lower)))
 
 
     def test_items(self):
@@ -66,15 +66,15 @@ class TestSettings(unittest.TestCase):
                 item = tuple(item.split(': ', 1))
                 items.append(item)
 
-        self.assertEqual(
+        self.assertTupleEqual(
             self.settings.items(self.section),
-            sorted(items, key=lambda i: str.lower(i[0])))
+            tuple(sorted(items, key=lambda i: str.lower(i[0]))))
 
 
     def test_sections(self):
         self.assertEqual(
             self.settings.sections(),
-            ['Default', 'aaa', 'Test1', 'Test2', 'zzz'])
+            ('Default', 'aaa', 'Test1', 'Test2', 'zzz'))
 
 
     def test_get_option(self):

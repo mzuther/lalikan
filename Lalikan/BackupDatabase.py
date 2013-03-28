@@ -303,8 +303,8 @@ class BackupDatabase:
                 backup_date = datetime.datetime.strptime(
                     timestamp, self._date_format)
 
-                # keep backups prior to given date
-                if backup_date < prior_date:
+                # keep backups prior to (or at!) given date
+                if backup_date <= prior_date:
                     found_backups.append(found_backup)
 
         # make result read-only
@@ -312,6 +312,41 @@ class BackupDatabase:
 
         #return result
         return found_backups
+
+
+    @Lalikan.Utilities.memoize
+    def last_backup(self, backup_type, now):
+        self._check_backup_type(backup_type)
+
+        # find existing backups
+        found_backups = self.find_old_backups(now)
+
+        # no backups were found
+        if not found_backups:
+            return None
+
+        # only "full" backups count as "full" backup
+        if backup_type == 'full':
+            accept_backups = ('full', )
+        # both "full" and "differential" backups count as
+        # "differential" backup
+        elif backup_type == 'differential':
+            accept_backups = ('full', 'diff')
+        # all backup types count as "incremental" backup
+        elif backup_type == 'incremental':
+            accept_backups = ('full', 'diff', 'incr')
+
+        # backwards loop over found backups
+        for n in range(len(found_backups), 0, -1):
+            # sequences start at index zero
+            index = n - 1
+
+            # we found the last backup when the current one matches
+            # any of the accepted types
+            if found_backups[index][1] in accept_backups:
+                return found_backups[index]
+
+        assert False, "this part of the code should never be reached!"
 
     # ----- OLD CODE -----
 

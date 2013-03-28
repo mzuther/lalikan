@@ -117,7 +117,8 @@ class TestBackupDatabase(unittest.TestCase):
             'Test1', self.settings)
 
         # just before first scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 1, 19, 59)
+        current_datetime = datetime.datetime(year=2012, month=1, day=1,
+                                             hour=19, minute=59)
         expected_result = """
 full:  2012-01-01 20:00:00
 """
@@ -125,7 +126,8 @@ full:  2012-01-01 20:00:00
                                          expected_result)
 
         # exactly at first scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 1, 20, 0)
+        current_datetime = datetime.datetime(year=2012, month=1, day=1,
+                                             hour=20, minute=0)
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 20:00:00
@@ -143,7 +145,8 @@ full:  2012-01-11 08:00:00
                                          expected_result)
 
         # just before second scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 11, 7, 59)
+        current_datetime = datetime.datetime(year=2012, month=1, day=11,
+                                             hour=7, minute=59)
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 20:00:00
@@ -161,7 +164,8 @@ full:  2012-01-11 08:00:00
                                          expected_result)
 
         # exactly at second scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 11, 8, 0)
+        current_datetime = datetime.datetime(year=2012, month=1, day=11,
+                                             hour=8, minute=0)
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 08:00:00
@@ -179,7 +183,8 @@ full:  2012-01-20 20:00:00
                                          expected_result)
 
         # after second scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 12, 11, 59)
+        current_datetime = datetime.datetime(year=2012, month=1, day=12,
+                                             hour=11, minute=59)
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 08:00:00
@@ -203,7 +208,8 @@ full:  2012-01-20 20:00:00
             'Test2', self.settings)
 
         # just before first scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 1, 19, 59)
+        current_datetime = datetime.datetime(year=2012, month=1, day=1,
+                                             hour=19, minute=59)
         expected_result = """
 full:  2012-01-01 20:00:00
 """
@@ -211,7 +217,8 @@ full:  2012-01-01 20:00:00
                                          expected_result)
 
         # exactly at first scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 1, 20, 0)
+        current_datetime = datetime.datetime(year=2012, month=1, day=1,
+                                             hour=20, minute=0)
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 17:36:00
@@ -232,7 +239,8 @@ full:  2012-01-11 08:00:00
                                          expected_result)
 
         # just before second scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 11, 7, 59)
+        current_datetime = datetime.datetime(year=2012, month=1, day=11,
+                                             hour=7, minute=59)
         expected_result = """
 full:  2012-01-01 20:00:00
 incr:  2012-01-02 17:36:00
@@ -253,7 +261,8 @@ full:  2012-01-11 08:00:00
                                          expected_result)
 
         # exactly at second scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 11, 8, 0)
+        current_datetime = datetime.datetime(year=2012, month=1, day=11,
+                                             hour=8, minute=0)
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 05:36:00
@@ -274,7 +283,8 @@ full:  2012-01-20 20:00:00
                                          expected_result)
 
         # after second scheduled "full" backup
-        current_datetime = datetime.datetime(2012, 1, 12, 11, 59)
+        current_datetime = datetime.datetime(year=2012, month=1, day=12,
+                                             hour=11, minute=59)
         expected_result = """
 full:  2012-01-11 08:00:00
 incr:  2012-01-12 05:36:00
@@ -295,58 +305,197 @@ full:  2012-01-20 20:00:00
                                          expected_result)
 
 
+    def simulate_backups(self, database, backup_directory):
+        # these are NOT valid backups!
+        self.simulate_backup(backup_directory, 'short', 'full',
+                             False, False)
+        self.simulate_backup(backup_directory, 'pretty-long_with_1234567890',
+                             'full', False, False)
+        self.simulate_backup(backup_directory, '2012-01-02_0403', 'full',
+                             False, False)
+        self.simulate_backup(backup_directory, '2012-01-03_0403', 'incr',
+                             True, False)
+        self.simulate_backup(backup_directory, '2012-01-04_0403', 'diff',
+                             False, True)
+
+        # valid (but faked) backups
+        self.faked_backups = (
+            ('2012-01-02_0201', 'full'),
+            ('2012-01-03_2000', 'incr'),
+            ('2012-01-04_2134', 'incr'),
+            ('2012-01-05_1234', 'diff'),
+            ('2012-01-05_2134', 'incr'),
+        )
+
+        for (timestamp, postfix) in self.faked_backups:
+            self.simulate_backup(backup_directory, timestamp, postfix,
+                                 True, True)
+
+
+    def simulate_backup(self, backup_directory, timestamp, postfix,
+                        has_files, has_catalog):
+        dirname = '{timestamp}-{postfix}'.format(**locals())
+        full_path = os.path.join(backup_directory, dirname)
+        os.makedirs(full_path)
+
+        if has_files:
+            os.mknod(os.path.join(full_path, dirname + '.01.dar'))
+            os.mknod(os.path.join(full_path, dirname + '.01.dar.md5'))
+
+            if has_catalog:
+                os.mknod(os.path.join(
+                        full_path, timestamp + '-catalog.01.dar'))
+
+
     def test_find_old_backups(self):
-        def simulate_backup(timestamp, postfix, has_files, has_catalog):
-            dirname = '{timestamp}-{postfix}'.format(**locals())
-            full_path = os.path.join(backup_directory, dirname)
-            os.makedirs(full_path)
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test1', self.settings)
+        backup_directory = database.get_backup_directory()
 
-            if has_files:
-                os.mknod(os.path.join(full_path, dirname + '.01.dar'))
-                os.mknod(os.path.join(full_path, dirname + '.01.dar.md5'))
+        try:
+            assert not os.path.exists(backup_directory)
+            os.makedirs(backup_directory)
 
-                if has_catalog:
-                    os.mknod(os.path.join(
-                            full_path, timestamp + '-catalog.01.dar'))
+            self.assertTupleEqual(
+                database.find_old_backups(),
+                ())
+
+            self.simulate_backups(database, backup_directory)
+
+            self.assertTupleEqual(
+                database.find_old_backups(datetime.datetime(
+                        year=2012, month=1, day=2,
+                        hour=2, minute=0)),
+                ())
+
+            self.assertTupleEqual(
+                database.find_old_backups(datetime.datetime(
+                        year=2012, month=1, day=2,
+                        hour=2, minute=1)),
+                self.faked_backups[:1])
+
+            self.assertTupleEqual(
+                database.find_old_backups(datetime.datetime(
+                        year=2012, month=1, day=5,
+                        hour=12, minute=33)),
+                self.faked_backups[:3])
+
+            self.assertTupleEqual(
+                database.find_old_backups(datetime.datetime(
+                        year=2012, month=1, day=5,
+                        hour=12, minute=34)),
+                self.faked_backups[:4])
+
+            self.assertTupleEqual(
+                database.find_old_backups(datetime.datetime(
+                        year=2012, month=1, day=5,
+                        hour=12, minute=35)),
+                self.faked_backups[:4])
+
+            self.assertTupleEqual(
+                database.find_old_backups(datetime.datetime(
+                        year=2099, month=12, day=31,
+                        hour=23, minute=59)),
+                self.faked_backups)
+
+            self.assertTupleEqual(
+                database.find_old_backups(),
+                self.faked_backups)
+
+        finally:
+            shutil.rmtree(backup_directory)
+
+
+
+    def test_find_last_backups(self):
+
+        def assertLastBackups(now, backup_full, backup_diff, backup_incr):
+            self.assertTupleEqual(
+                database.last_backup('full', now),
+                backup_full)
+
+            self.assertTupleEqual(
+                database.last_backup('differential', now),
+                backup_diff)
+
+            self.assertTupleEqual(
+                database.last_backup('incremental', now),
+                backup_incr)
+
 
         database = Lalikan.BackupDatabase.BackupDatabase(
             'Test1', self.settings)
         backup_directory = database.get_backup_directory()
 
-        assert not os.path.exists(backup_directory)
-        os.makedirs(backup_directory)
-
         try:
-            # these are NOT valid backups!
-            simulate_backup('short', 'full', False, False)
-            simulate_backup('pretty-long_with_1234567890', 'full', False, False)
-            simulate_backup('2012-01-02_0403', 'full', False, False)
-            simulate_backup('2012-01-03_0403', 'incr', True, False)
-            simulate_backup('2012-01-04_0403', 'diff', False, True)
+            assert not os.path.exists(backup_directory)
+            os.makedirs(backup_directory)
+
+            self.simulate_backups(database, backup_directory)
+
+            now = datetime.datetime(year=2012, month=1, day=2,
+                                    hour=2, minute=0)
 
             self.assertEqual(
-                database.find_old_backups(),
-                ())
-
-            # valid (but faked) backups
-            faked_backups = (
-                ('2012-01-02_0201', 'full'),
-                ('2012-01-03_2000', 'incr'),
-                ('2012-01-04_2134', 'incr'),
-                ('2012-01-05_1234', 'diff'),
-                ('2012-01-05_2134', 'incr'),
-            )
-
-            for (timestamp, postfix) in faked_backups:
-                simulate_backup(timestamp, postfix, True, True)
+                database.last_backup('full', now),
+                None)
 
             self.assertEqual(
-                database.find_old_backups(),
-                faked_backups)
+                database.last_backup('differential', now),
+                None)
 
             self.assertEqual(
-                database.find_old_backups(datetime.datetime(2012, 1, 5)),
-                faked_backups[:3])
+                database.last_backup('incremental', now),
+                None)
+
+
+            assertLastBackups(
+                now=datetime.datetime(year=2012, month=1, day=2,
+                                      hour=2, minute=1),
+                backup_full=('2012-01-02_0201', 'full'),
+                backup_diff=('2012-01-02_0201', 'full'),
+                backup_incr=('2012-01-02_0201', 'full'))
+
+
+            assertLastBackups(
+                now=datetime.datetime(year=2012, month=1, day=3,
+                                      hour=20, minute=1),
+                backup_full=('2012-01-02_0201', 'full'),
+                backup_diff=('2012-01-02_0201', 'full'),
+                backup_incr=('2012-01-03_2000', 'incr'))
+
+
+            assertLastBackups(
+                now=datetime.datetime(year=2012, month=1, day=5,
+                                      hour=6, minute=37),
+                backup_full=('2012-01-02_0201', 'full'),
+                backup_diff=('2012-01-02_0201', 'full'),
+                backup_incr=('2012-01-04_2134', 'incr'))
+
+
+            assertLastBackups(
+                now=datetime.datetime(year=2012, month=1, day=5,
+                                      hour=12, minute=35),
+                backup_full=('2012-01-02_0201', 'full'),
+                backup_diff=('2012-01-05_1234', 'diff'),
+                backup_incr=('2012-01-05_1234', 'diff'))
+
+
+            assertLastBackups(
+                now=datetime.datetime(year=2012, month=1, day=5,
+                                      hour=22, minute=14),
+                backup_full=('2012-01-02_0201', 'full'),
+                backup_diff=('2012-01-05_1234', 'diff'),
+                backup_incr=('2012-01-05_2134', 'incr'))
+
+
+            assertLastBackups(
+                now=datetime.datetime(year=2099, month=12, day=31,
+                                      hour=23, minute=59),
+                backup_full=('2012-01-02_0201', 'full'),
+                backup_diff=('2012-01-05_1234', 'diff'),
+                backup_incr=('2012-01-05_2134', 'incr'))
+
         finally:
             shutil.rmtree(backup_directory)
 

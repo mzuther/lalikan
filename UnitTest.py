@@ -40,6 +40,7 @@ if __name__ == '__main__':
         print('\n' + module_name)
         eval('test_runner.run({0}.get_suite())'.format(module_import))
 
+
     valid_tests = {
         'Lalikan.BackupDatabase': 'Lalikan.UnitTest.BackupDatabase',
         'Lalikan.Settings': 'Lalikan.UnitTest.Settings',
