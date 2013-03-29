@@ -44,7 +44,6 @@ class BackupDatabase:
             return settings.get(section, setting, allow_empty)
 
         self._debugger = None
-        self._backup_schedule = None
         self._section = section
 
         self._backup_client = get_setting('backup_client', False)
@@ -142,17 +141,7 @@ class BackupDatabase:
 
 
     @Lalikan.Utilities.memoize
-    def calculate_backup_schedule(self, current_datetime):
-        # try to re-use old calculation
-        if self._backup_schedule is not None:
-            # check whether old calculation is valid for given date;
-            # "self._backup_schedule" starts with last scheduled
-            # "full" backup and ends with upcoming "full" backup
-            if (self._backup_schedule[0][1]
-                    <= current_datetime
-                    < self._backup_schedule[-1][1]):
-                return self._backup_schedule
-
+    def calculate_backup_schedule(self, now):
         # initialise dict to hold scheduled backup times
         backup_start_times = {}
         for backup_type in self._backup_types:
@@ -162,7 +151,7 @@ class BackupDatabase:
         # initialise variables to calculate all scheduled "full"
         # backups until given date
         current_backup_start_time = self._backup_start_time
-        backup_end_time = current_datetime
+        backup_end_time = now
         delta = datetime.timedelta(self._backup_interval['full'])
 
         # calculate all scheduled "full" backups until given date
@@ -227,28 +216,57 @@ class BackupDatabase:
         for backup_type in self._backup_types:
             postfix = self.get_backup_postfix(backup_type)
             for backup_start_time in backup_start_times[postfix]:
-                consolidation.append((postfix, backup_start_time))
+                consolidation.append((backup_start_time, postfix))
 
         # sort consolidated backup start times by date
-        self._backup_schedule = sorted(consolidation, key=lambda k: k[1])
+        backup_schedule = sorted(consolidation, key=lambda k: k[0])
 
         # make consolidated result read-only
-        self._backup_schedule = tuple(self._backup_schedule)
+        backup_schedule = tuple(backup_schedule)
 
         # return consolidated backup start times
-        return self._backup_schedule
+        return backup_schedule
 
 
     @Lalikan.Utilities.memoize
-    def last_scheduled_backup(self, current_datetime):
-        self.calculate_backup_schedule(current_datetime)
+    def last_scheduled_backup(self, backup_type, now):
+        self._check_backup_type(backup_type)
 
-        last_scheduled_backup = {'full': None, 'diff': None, 'incr': None}
-        for backup_type, backup_start_time in self._backup_schedule:
-            if backup_start_time < current_datetime:
-                last_scheduled_backup[backup_type] = backup_start_time
+        # find scheduled backups
+        scheduled_backups = self.calculate_backup_schedule(now)
 
-        return last_scheduled_backup
+        # no backups were scheduled
+        if not scheduled_backups:
+            return None
+
+        # only "full" backups count as "full" backup
+        if backup_type == 'full':
+            accept_backups = ('full', )
+        # both "full" and "differential" backups count as
+        # "differential" backup
+        elif backup_type == 'differential':
+            accept_backups = ('full', 'diff')
+        # all backup types count as "incremental" backup
+        elif backup_type == 'incremental':
+            accept_backups = ('full', 'diff', 'incr')
+
+        # backwards loop over scheduled backups
+        for n in range(len(scheduled_backups), 0, -1):
+            # sequences start at index zero
+            index = n - 1
+
+            # we found the last scheduled backup when the current one
+            # matches any of the accepted types ...
+            if scheduled_backups[index][1] in accept_backups:
+                last_backup = scheduled_backups[index][0]
+                backup_type = scheduled_backups[index][1]
+
+                # ... and it doesn't lie in the future
+                if last_backup <= now:
+                    return (last_backup, backup_type)
+
+        # no matching scheduled backup found
+        return None
 
 
     def find_old_backups(self, prior_date=None):
@@ -315,7 +333,7 @@ class BackupDatabase:
 
 
     @Lalikan.Utilities.memoize
-    def last_backup(self, backup_type, now):
+    def last_existing_backup(self, backup_type, now):
         self._check_backup_type(backup_type)
 
         # find existing backups
@@ -344,7 +362,11 @@ class BackupDatabase:
             # we found the last backup when the current one matches
             # any of the accepted types
             if found_backups[index][1] in accept_backups:
-                return found_backups[index]
+                last_backup = datetime.datetime.strptime(
+                    found_backups[index][0], self._date_format)
+                backup_type = found_backups[index][1]
+
+                return (last_backup, backup_type)
 
         assert False, "this part of the code should never be reached!"
 
@@ -663,36 +685,3 @@ class BackupDatabase:
                 delete_backup(basename)
         elif backup_type == 'incremental':
             return
-
-
-if __name__ == '__main__':
-    config_file = 'UnitTest/test.ini'
-    section = 'Test1'
-    number_of_days = 60
-    interval = 4.0
-    start_time = datetime.datetime.now()
-
-    print()
-    settings = Settings.Settings(config_file)
-    print('selected backup "{0}"'.format(section))
-    bd = BackupDatabase(section, settings)
-
-    print()
-    current_datetime = datetime.datetime.now()
-    backup_start_times = bd.calculate_backup_schedule(current_datetime)
-    last_backup = bd.last_backup(current_datetime)
-
-    for backup_type, backup_start_time in backup_start_times:
-        print(backup_type + ': ', backup_start_time)
-    print()
-
-    print('now  -->', current_datetime)
-    for backup_type in ('full', 'diff', 'incr'):
-        print(backup_type, '-->', last_backup[backup_type])
-
-    #print()
-    #for backup_date in bd.find_old_backups('incremental'):
-    #    print('*', backup_date)
-
-    #bd.test(number_of_days, interval, start_time)
-    print()
