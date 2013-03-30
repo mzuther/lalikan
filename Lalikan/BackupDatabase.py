@@ -43,9 +43,7 @@ class BackupDatabase:
         def get_setting(setting, allow_empty):
             return settings.get(section, setting, allow_empty)
 
-        self._debugger = None
         self._section = section
-
         self._backup_client = get_setting('backup_client', False)
 
         # for local backups, a port number is not required
@@ -61,14 +59,14 @@ class BackupDatabase:
         self._last_backup_days = {}
         self._last_backup_file = {}
 
-        self._backup_types = ('full', 'differential', 'incremental')
-        for backup_type in self._backup_types:
-            self._backup_interval[backup_type] = float(get_setting(
-                'backup_interval_{0}'.format(backup_type), False))
+        self._backup_levels = ('full', 'differential', 'incremental')
+        for backup_level in self._backup_levels:
+            self._backup_interval[backup_level] = float(get_setting(
+                'backup_interval_{0}'.format(backup_level), False))
 
-            self._backup_postfixes[backup_type] = backup_type[:4]
-            self._last_backup_days[backup_type] = None
-            self._last_backup_file[backup_type] = None
+            self._backup_postfixes[backup_level] = backup_level[:4]
+            self._last_backup_days[backup_level] = None
+            self._last_backup_file[backup_level] = None
 
         self._backup_options = get_setting('backup_options', True)
         self._path_to_dar = get_setting('path_to_dar', True)
@@ -84,10 +82,10 @@ class BackupDatabase:
         self._command_post_run = get_setting('command_post_run', True)
 
 
-    def _check_backup_type(self, backup_type):
-        if backup_type not in self._backup_postfixes:
+    def _check_backup_level(self, backup_level):
+        if backup_level not in self._backup_postfixes:
             raise ValueError(
-                'wrong backup type given ("{0}")'.format(backup_type))
+                'wrong backup level given ("{0}")'.format(backup_level))
 
 
     def get_backup_client(self):
@@ -106,18 +104,18 @@ class BackupDatabase:
         return self._path_to_dar_manager
 
 
-    def get_backup_interval(self, backup_type):
-        self._check_backup_type(backup_type)
-        return self._backup_interval[backup_type]
+    def get_backup_interval(self, backup_level):
+        self._check_backup_level(backup_level)
+        return self._backup_interval[backup_level]
 
 
     def get_backup_directory(self):
         return self._backup_directory
 
 
-    def get_backup_postfix(self, backup_type):
-        self._check_backup_type(backup_type)
-        return self._backup_postfixes[backup_type]
+    def get_backup_postfix(self, backup_level):
+        self._check_backup_level(backup_level)
+        return self._backup_postfixes[backup_level]
 
 
     def get_backup_options(self):
@@ -144,8 +142,8 @@ class BackupDatabase:
     def calculate_backup_schedule(self, now):
         # initialise dict to hold scheduled backup times
         backup_start_times = {}
-        for backup_type in self._backup_types:
-            postfix = self.get_backup_postfix(backup_type)
+        for backup_level in self._backup_levels:
+            postfix = self.get_backup_postfix(backup_level)
             backup_start_times[postfix] = []
 
         # initialise variables to calculate all scheduled "full"
@@ -213,8 +211,8 @@ class BackupDatabase:
 
         # consolidate backup start times into a single list
         consolidation = []
-        for backup_type in self._backup_types:
-            postfix = self.get_backup_postfix(backup_type)
+        for backup_level in self._backup_levels:
+            postfix = self.get_backup_postfix(backup_level)
             for backup_start_time in backup_start_times[postfix]:
                 consolidation.append((backup_start_time, postfix))
 
@@ -229,9 +227,7 @@ class BackupDatabase:
 
 
     @Lalikan.Utilities.memoize
-    def last_scheduled_backup(self, backup_type, now):
-        self._check_backup_type(backup_type)
-
+    def __last_scheduled_backup(self, backup_level, now):
         # find scheduled backups
         scheduled_backups = self.calculate_backup_schedule(now)
 
@@ -240,15 +236,15 @@ class BackupDatabase:
             return None
 
         # only "full" backups count as "full" backup
-        if backup_type == 'full':
-            accept_backups = ('full', )
+        if backup_level == 'full':
+            accepted_levels = ('full', )
         # both "full" and "differential" backups count as
         # "differential" backup
-        elif backup_type == 'differential':
-            accept_backups = ('full', 'diff')
-        # all backup types count as "incremental" backup
-        elif backup_type == 'incremental':
-            accept_backups = ('full', 'diff', 'incr')
+        elif backup_level == 'differential':
+            accepted_levels = ('full', 'diff')
+        # all backup levels count as "incremental" backup
+        elif backup_level == 'incremental':
+            accepted_levels = ('full', 'diff', 'incr')
 
         # backwards loop over scheduled backups
         for n in range(len(scheduled_backups), 0, -1):
@@ -256,17 +252,98 @@ class BackupDatabase:
             index = n - 1
 
             # we found the last scheduled backup when the current one
-            # matches any of the accepted types ...
-            if scheduled_backups[index][1] in accept_backups:
-                last_backup = scheduled_backups[index][0]
-                backup_type = scheduled_backups[index][1]
+            # matches any of the accepted levels ...
+            if scheduled_backups[index][1] in accepted_levels:
+                last_scheduled = scheduled_backups[index][0]
+                backup_level = scheduled_backups[index][1]
 
                 # ... and it doesn't lie in the future
-                if last_backup <= now:
-                    return (last_backup, backup_type)
+                if last_scheduled <= now:
+                    return (last_scheduled, backup_level)
 
         # no matching scheduled backup found
         return None
+
+
+    @Lalikan.Utilities.memoize
+    def last_scheduled_backup(self, backup_level, now):
+        self._check_backup_level(backup_level)
+
+        # get last existing backup of given (or lower) level
+        last_existing = self.last_existing_backup(backup_level, now)
+
+        # get date of last existing backup
+        if last_existing is not None:
+            last_existing = last_existing[0]
+        # if this fails, use date of the Epoch so that "last_existing"
+        # can be compared to "datetime" objects
+        else:
+            last_existing = datetime.datetime(1970, 1, 1)
+
+        if backup_level == 'full':
+            # see whether we need a "full" backup
+            full = self.__last_scheduled_backup('full', now)
+            return full
+        elif backup_level == 'differential':
+            # do we need a "full" backup?
+            full = self.__last_scheduled_backup('full', now)
+            if (full is not None) and (last_existing < full[0]):
+                return full
+
+            # otherwise, see whether we need a "differential" backup
+            diff = self.__last_scheduled_backup('differential', now)
+            return diff
+        elif backup_level == 'incremental':
+            # do we need a "full" backup?
+            full = self.__last_scheduled_backup('full', now)
+            if (full is not None) and (last_existing < full[0]):
+                return full
+
+            # do we need a "differential" backup?
+            diff = self.__last_scheduled_backup('differential', now)
+            if (diff is not None) and (last_existing < diff[0]):
+                return diff
+
+            # otherwise, see whether we need an "incremental" backup
+            incr = self.__last_scheduled_backup('incremental', now)
+            return incr
+
+
+    @Lalikan.Utilities.memoize
+    def next_scheduled_backup(self, backup_level, now):
+        self._check_backup_level(backup_level)
+
+        # find scheduled backups
+        scheduled_backups = self.calculate_backup_schedule(now)
+
+        # no backups were scheduled
+        if not scheduled_backups:
+            assert False, "this part of the code should never be reached!"
+
+        # only "full" backups count as "full" backup
+        if backup_level == 'full':
+            accepted_levels = ('full', )
+        # both "full" and "differential" backups count as
+        # "differential" backup
+        elif backup_level == 'differential':
+            accepted_levels = ('full', 'diff')
+        # all backup levels count as "incremental" backup
+        elif backup_level == 'incremental':
+            accepted_levels = ('full', 'diff', 'incr')
+
+        # loop over scheduled backups
+        for index in range(len(scheduled_backups)):
+            # we found the next scheduled backup when the current one
+            # matches any of the accepted levels ...
+            if scheduled_backups[index][1] in accepted_levels:
+                next_backup = scheduled_backups[index][0]
+                backup_level = scheduled_backups[index][1]
+
+                # ... and it lies in the future
+                if next_backup > now:
+                    return (next_backup, backup_level)
+
+        assert False, "this part of the code should never be reached!"
 
 
     def find_old_backups(self, prior_date=None):
@@ -277,34 +354,29 @@ class BackupDatabase:
 
         # look for created backups (either real or simulated)
         found_backups = []
-        if self._debugger:
-            pass  # TODO
-        #     for item in self._debugger['directories']:
-        #         if regex.match(item):
-        #             found_backups.append(item)
-        else:
-            # find all subdirectories in backup directory
-            for dirname in os.listdir(self._backup_directory):
-                # convert found path to absolute path
-                full_path = os.path.join(self._backup_directory, dirname)
 
-                # check whether found path is a directory ...
-                if os.path.isdir(full_path):
-                    # ... which name matches the date/postfix regex
-                    m = regex.match(dirname)
+        # find all subdirectories in backup directory
+        for dirname in os.listdir(self._backup_directory):
+            # convert found path to absolute path
+            full_path = os.path.join(self._backup_directory, dirname)
 
-                    # extract path composition from matching paths
-                    if m is not None:
-                        (timestamp, postfix) = m.groups()
+            # check whether found path is a directory ...
+            if os.path.isdir(full_path):
+                # ... which name matches the date/postfix regex
+                m = regex.match(dirname)
 
-                        # prepare search for backup catalog
-                        catalog_name = '{0}-catalog.01.dar'.format(timestamp)
-                        catalog_full = os.path.join(full_path, catalog_name)
+                # extract path composition from matching paths
+                if m is not None:
+                    (timestamp, postfix) = m.groups()
 
-                        # look for readable catalog file
-                        if os.access(catalog_full, os.R_OK):
-                            # regard path as valid backup
-                            found_backups.append((timestamp, postfix))
+                    # prepare search for backup catalog
+                    catalog_name = '{0}-catalog.01.dar'.format(timestamp)
+                    catalog_full = os.path.join(full_path, catalog_name)
+
+                    # look for readable catalog file
+                    if os.access(catalog_full, os.R_OK):
+                        # regard path as valid backup
+                        found_backups.append((timestamp, postfix))
 
         # sort found backups by path
         found_backups.sort(key=lambda i: str.lower(i[0]))
@@ -333,8 +405,8 @@ class BackupDatabase:
 
 
     @Lalikan.Utilities.memoize
-    def last_existing_backup(self, backup_type, now):
-        self._check_backup_type(backup_type)
+    def last_existing_backup(self, backup_level, now):
+        self._check_backup_level(backup_level)
 
         # find existing backups
         found_backups = self.find_old_backups(now)
@@ -344,15 +416,15 @@ class BackupDatabase:
             return None
 
         # only "full" backups count as "full" backup
-        if backup_type == 'full':
-            accept_backups = ('full', )
+        if backup_level == 'full':
+            accepted_levels = ('full', )
         # both "full" and "differential" backups count as
         # "differential" backup
-        elif backup_type == 'differential':
-            accept_backups = ('full', 'diff')
-        # all backup types count as "incremental" backup
-        elif backup_type == 'incremental':
-            accept_backups = ('full', 'diff', 'incr')
+        elif backup_level == 'differential':
+            accepted_levels = ('full', 'diff')
+        # all backup levels count as "incremental" backup
+        elif backup_level == 'incremental':
+            accepted_levels = ('full', 'diff', 'incr')
 
         # backwards loop over found backups
         for n in range(len(found_backups), 0, -1):
@@ -360,129 +432,71 @@ class BackupDatabase:
             index = n - 1
 
             # we found the last backup when the current one matches
-            # any of the accepted types
-            if found_backups[index][1] in accept_backups:
-                last_backup = datetime.datetime.strptime(
+            # any of the accepted levels
+            if found_backups[index][1] in accepted_levels:
+                last_existing = datetime.datetime.strptime(
                     found_backups[index][0], self._date_format)
-                backup_type = found_backups[index][1]
+                backup_level = found_backups[index][1]
 
-                return (last_backup, backup_type)
+                return (last_existing, backup_level)
 
         assert False, "this part of the code should never be reached!"
 
+
+    @Lalikan.Utilities.memoize
+    def days_overdue(self, backup_level, now):
+        last_scheduled = self.last_scheduled_backup(backup_level, now)
+        last_existing = self.last_existing_backup(backup_level, now)
+
+        # no scheduled backup lies in the past
+        if last_scheduled is None:
+            next_scheduled = self.next_scheduled_backup(backup_level, now)
+            calculation_base = next_scheduled[0]
+        # no backup of this level has been executed yet
+        elif last_existing is None:
+            calculation_base = last_scheduled[0]
+        # last backup of this level is older than scheduled backup
+        elif last_existing[0] < last_scheduled[0]:
+            calculation_base = last_scheduled[0]
+        # last executed backup is current
+        else:
+            next_scheduled = self.next_scheduled_backup(backup_level, now)
+            calculation_base = next_scheduled[0]
+
+        # calculate fractional days since/until scheduled backup
+        days_overdue = ((now - calculation_base) / datetime.timedelta(days=1))
+
+        # negative numbers:  days since when backup level is overdue
+        # positive numbers:  days until the next scheduled backup
+        return days_overdue
+
+
+    @Lalikan.Utilities.memoize
+    def backup_needed(self, now, force_backup):
+        # do we need to execute a "full" backup?
+        if self.days_overdue('full', now) >= 0.0:
+            needed_backup = 'full'
+        # do we need to execute a "differential" backup?
+        elif self.days_overdue('differential', now) >= 0.0:
+            needed_backup = 'differential'
+        # do we need to execute an "incremental" backup?
+        elif self.days_overdue('incremental', now) >= 0.0:
+            needed_backup = 'incremental'
+        # did we force creation of a backup?
+        elif force_backup:
+            # cannot force backup before schedule begins
+            if now < self._backup_start_time:
+                needed_backup = None
+            else:
+                needed_backup = 'forced'
+        # no backup necessary
+        else:
+            needed_backup = None
+
+        return needed_backup
+
+
     # ----- OLD CODE -----
-
-    def need_backup(self, force_backup):
-        for backup_type in self._backup_types:
-            if self._last_backup(backup_type) < 0:
-                return backup_type
-
-        # no backup scheduled
-        if force_backup:
-            return 'incremental (forced)'
-        else:
-            return 'none'
-
-
-    def _last_backup(self, backup_type):
-        self._check_backup_type(backup_type)
-
-        backup_last = self.days_since_last_backup(backup_type)
-        backup_due = self._days_since_backup_due_date(backup_type)
-
-        if backup_type == 'differential':
-            backup_interval = self._backup_interval['differential']
-            backup_due_full = self._days_since_backup_due_date('full')
-
-            # differential backups should pause for one backup
-            # interval after a full backup is due
-            if (backup_last < 0) or (backup_due_full < backup_interval):
-                backup_due = backup_due_full - backup_interval
-
-        # skip backup
-        if backup_due < 0:
-            return 1
-        # no previous backup found, so mark it as due
-        elif backup_last < 0:
-            return -1
-        # mark backup as due when last backup is older than its
-        # scheduled date
-        else:
-            return backup_due - backup_last
-
-
-    def name_of_last_backup(self, backup_type):
-        if self._last_backup_file[backup_type] is not None:
-            return self._last_backup_file[backup_type]
-
-        directories = self.find_old_backups(backup_type, None)
-        if len(directories) == 0:
-            return None
-        else:
-            self._last_backup_file[backup_type] = directories[-1]
-            return self._last_backup_file[backup_type]
-
-
-    def days_since_last_backup(self, backup_type):
-        if self._last_backup_days[backup_type] is not None:
-            return self._last_backup_days[backup_type]
-
-        most_recent = self.name_of_last_backup(backup_type)
-
-        if most_recent is None:
-            return -1.0
-        else:
-            self._check_backup_type(backup_type)
-
-            backup_postfix = self._backup_postfixes[backup_type]
-            most_recent = most_recent[:-len(backup_postfix) - 1]
-            most_recent_datetime = datetime.datetime.strptime(
-                most_recent, self._date_format)
-            if self._debugger:
-                now = self._debugger['now']
-            else:
-                now = datetime.datetime.now()
-
-            age = now - most_recent_datetime
-            self._last_backup_days[backup_type] = (age.days +
-                                                   age.seconds / 86400.0)
-
-            return self._last_backup_days[backup_type]
-
-
-    def _days_since_backup_due_date(self, backup_type):
-        self._check_backup_type(backup_type)
-
-        backup_postfix = self._backup_postfixes[backup_type]
-        if backup_type == 'full':
-            if self._debugger:
-                now = self._debugger['now']
-            else:
-                now = datetime.datetime.now()
-
-            time_passed = now - self._backup_start_time
-            days_passed = time_passed.days + time_passed.seconds / 86400.0
-        else:
-            days_passed = self._days_since_backup_due_date('full')
-
-        # backup start date lies in the future
-        if days_passed < 0:
-            return days_passed
-
-        days_since_due_date = days_passed % self._backup_interval[backup_type]
-        return days_since_due_date
-
-
-    def days_to_next_backup_due_date(self, backup_type):
-        self._check_backup_type(backup_type)
-
-        remaining_days = -self._days_since_backup_due_date(backup_type)
-
-        if remaining_days < 0:
-            remaining_days += self._backup_interval[backup_type]
-
-        return remaining_days
-
 
     def sanitise_path(self, path):
         path = os.path.abspath(path)
@@ -502,13 +516,13 @@ class BackupDatabase:
         return path
 
 
-    def get_backup_reference(self, backup_type):
-        self._check_backup_type(backup_type)
+    def get_backup_reference(self, backup_level):
+        self._check_backup_level(backup_level)
 
-        if backup_type == 'full':
+        if backup_level == 'full':
             reference_base = 'none'
             reference_option = ''
-        elif backup_type == 'differential':
+        elif backup_level == 'differential':
             reference_base = self.name_of_last_backup('full')
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{0}-catalog'.format(reference_timestamp)
@@ -516,7 +530,7 @@ class BackupDatabase:
             full_path = os.path.join(self.get_backup_directory(),
                                      reference_base, reference_catalog)
             reference_option = '--ref ' + self.sanitise_path(full_path)
-        elif backup_type == 'incremental':
+        elif backup_level == 'incremental':
             last_full = self.days_since_last_backup('full')
             last_differential = self.days_since_last_backup('differential')
             last_incremental = self.days_since_last_backup('incremental')
@@ -541,147 +555,3 @@ class BackupDatabase:
             reference_option = '--ref ' + self.sanitise_path(full_path)
 
         return (reference_base, reference_option)
-
-
-    def test(self, number_of_days, backup_interval, start_datetime):
-        self._debugger = {}
-        self._debugger['directories'] = []
-        self._debugger['references'] = []
-        self._debugger['now'] = start_datetime
-
-        number_of_backups = int(number_of_days / backup_interval) + 2
-        current_days = [(backup_id * backup_interval)
-                        for backup_id in range(number_of_backups)
-                        if (backup_id * backup_interval) <= number_of_days]
-
-        for current_day in current_days:
-            created_backup = self.test_run()
-
-            if not created_backup:
-                print()
-            print('----- {0} -----'.format(
-                    self._debugger['now'].strftime(self.get_date_format())))
-
-            if created_backup:
-                for n in range(len(self._debugger['directories'])):
-                    directory = self._debugger['directories'][n]
-                    reference = self._debugger['references'][n]
-
-                    if reference.endswith(self.get_backup_postfix(
-                            'differential')):
-                        reference = '    {reference}'.format(**locals())
-                    elif reference.endswith(self.get_backup_postfix(
-                            'incremental')):
-                        reference = '        {reference}'.format(**locals())
-
-                    if directory.endswith(self.get_backup_postfix('full')):
-                        print('{directory}            {reference}'.format(
-                                **locals()))
-                    elif directory.endswith(self.get_backup_postfix(
-                            'differential')):
-                        print('    {directory}        {reference}'.format(
-                                **locals()))
-                    else:
-                        print('        {directory}    {reference}'.format(
-                                **locals()))
-                print('----------------------------\n')
-
-            self._debugger['now'] += datetime.timedelta(backup_interval)
-
-
-    def test_run(self):
-        backup_type = self.need_backup(False)
-
-        print('\nnext full in  {0:7.3f} days  ({1:7.3f})'.format(
-                self.days_to_next_backup_due_date('full'),
-                self.get_backup_interval('full')))
-        print('next diff in  {0:7.3f} days  ({1:7.3f})'.format(
-                self.days_to_next_backup_due_date('differential'),
-                self.get_backup_interval('differential')))
-        print('next incr in  {0:7.3f} days  ({1:7.3f})\n'.format(
-                self.days_to_next_backup_due_date('incremental'),
-                self.get_backup_interval('incremental')))
-
-        print('backup type:  {0}\n'.format(backup_type))
-
-        if backup_type == 'none':
-            return False
-        else:
-            backup_postfix = self.get_backup_postfix(backup_type)
-            (reference_base, reference_option) = self.get_backup_reference(
-                backup_type)
-
-            print()
-            now = self._debugger['now']
-            timestamp = now.strftime(self.get_date_format())
-
-            base_name = '{timestamp}-{backup_postfix}'.format(**locals())
-            catalog_name = '{0}-catalog'.format(timestamp)
-
-            self._debugger['directories'].append(base_name)
-            self._debugger['references'].append(reference_base)
-
-            self.__delete_old_backups(backup_type)
-            return True
-
-
-    def __delete_old_backups(self, backup_type):
-        def delete_backup(basename):
-            print('deleting old backup "{0}"'.format(basename))
-            n = self._debugger['directories'].index(basename)
-
-            del self._debugger['directories'][n]
-            del self._debugger['references'][n]
-
-
-        backup_postfix = self.get_backup_postfix(backup_type)
-        remove_prior = self.find_old_backups(backup_type, None)
-        if len (remove_prior) < 2:
-            return
-        else:
-            # get date of previous backup of same type
-            prior_date = remove_prior[-2]
-            prior_date = prior_date[:-len(backup_postfix) - 1]
-            prior_date = datetime.datetime.strptime(
-                prior_date, self.get_date_format())
-
-        # please remember: never delete full backups!
-        if backup_type == 'full':
-            print('\nfull: removing diff and incr prior to last full ({0})\n'.format(prior_date))
-
-            for basename in self.find_old_backups('incremental', prior_date):
-                delete_backup(basename)
-
-            for basename in self.find_old_backups('differential', prior_date):
-                delete_backup(basename)
-
-            # separate check for old differential backups
-            backup_postfix_diff = self.get_backup_postfix('differential')
-            remove_prior_diff = self.find_old_backups('differential', None)
-
-            if (len(remove_prior) > 1) and (len(remove_prior_diff) > 0):
-                # get date of last full backup
-                last_full_date = remove_prior[-1]
-                last_full_date = last_full_date[:-len(backup_postfix) - 1]
-                last_full_date = datetime.datetime.strptime(
-                    last_full_date, self.get_date_format())
-
-                # get date of last differential backup
-                last_diff_date = remove_prior_diff[-1]
-                last_diff_date = last_diff_date[:-len(backup_postfix_diff) - 1]
-                last_diff_date = datetime.datetime.strptime(
-                    last_diff_date, self.get_date_format())
-
-                print('\nfull: removing incr prior to last diff ({0})\n'.format(last_diff_date))
-
-                for basename in self.find_old_backups('incremental',
-                                                      last_diff_date):
-                    delete_backup(basename)
-
-        elif backup_type == 'differential':
-            print('\ndiff: removing incr prior to last diff ({0})\n'.format(prior_date))
-
-            for basename in self.find_old_backups('incremental', prior_date):
-                delete_backup(basename)
-        elif backup_type == 'incremental':
-            return

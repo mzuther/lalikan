@@ -24,6 +24,7 @@
 
 """
 
+import os.path
 import sys
 import unittest
 
@@ -46,13 +47,23 @@ if __name__ == '__main__':
         'Lalikan.Settings': 'Lalikan.UnitTest.Settings',
     }
 
+    if 'help' in sys.argv:
+        print('\n    Usage: {0} [module1] [module2] [...]'.format(
+                os.path.basename(__file__)))
+        print('\n    Valid test suites are:\n')
+        for key in sorted(valid_tests):
+            print('    * ' + key)
+        print()
+        exit(0)
+
     specified_tests = sorted(set(sys.argv[1:]))
     for test_suite in specified_tests:
         if test_suite not in valid_tests:
-            print('\nNo test suite found for module "{0}".'.format(test_suite))
-            print('Valid tests are:\n')
+            print('\n    No test suite found in module "{0}".'.format(
+                    test_suite))
+            print('\n    Valid test suites are:\n')
             for key in sorted(valid_tests):
-                print('* ' + key)
+                print('    * ' + key)
             print()
             exit(1)
 
