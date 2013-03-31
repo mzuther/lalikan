@@ -191,7 +191,7 @@ class Lalikan:
         self.__database = Lalikan.BackupDatabase.BackupDatabase( \
             section, settings, debugger)
 
-        if not debugger and os.name == 'posix':
+        if not debugger and (sys.platform == 'linux2'):
             # check whether the script runs with superuser rights
             if (os.getuid() != 0) or (os.getgid() != 0):
                 print('\n%s\n' % \
@@ -663,7 +663,7 @@ class Lalikan:
             # do not expire warnings and errors
             expiration = 0
 
-        if (os.name == 'posix') and not debugger:
+        if not debugger and (sys.platform == 'linux2'):
             cmd = "notify-send -t %(expiration)d -u %(urgency)s -i %(icon)s '%(summary)s' '%(message)s'" % \
                 {'expiration': expiration * 1000, \
                  'urgency': 'normal', \

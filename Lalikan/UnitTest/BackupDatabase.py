@@ -3,12 +3,15 @@
 import datetime
 import os.path
 import shutil
+import sys
 import unittest
 
 import Lalikan.BackupDatabase
 import Lalikan.Settings
 
 
+# on Windows, please note that the temporary backup directory will be
+# created in the root of your current working directory's drive
 class TestBackupDatabase(unittest.TestCase):
 
     def setUp(self):
@@ -40,16 +43,22 @@ class TestBackupDatabase(unittest.TestCase):
 
     def __simulate_backup(self, backup_directory, timestamp, postfix,
                           has_files, has_catalog):
+
+        def create_file(filename):
+            with open(filename, 'wt') as outfile:
+                outfile.write('')
+
+
         dirname = '{timestamp}-{postfix}'.format(**locals())
         full_path = os.path.join(backup_directory, dirname)
         os.makedirs(full_path)
 
         if has_files:
-            os.mknod(os.path.join(full_path, dirname + '.01.dar'))
-            os.mknod(os.path.join(full_path, dirname + '.01.dar.md5'))
+            create_file(os.path.join(full_path, dirname + '.01.dar'))
+            create_file(os.path.join(full_path, dirname + '.01.dar.md5'))
 
             if has_catalog:
-                os.mknod(os.path.join(
+                create_file(os.path.join(
                         full_path, timestamp + '-catalog.01.dar'))
 
 
@@ -1134,6 +1143,58 @@ full:  2012-01-20 20:00:00
 
         finally:
             shutil.rmtree(backup_directory)
+
+
+    def test_sanitise_path(self):
+        database = Lalikan.BackupDatabase.BackupDatabase(
+            'Test1', self.settings)
+
+        if sys.platform == 'win32':
+            current_path = os.getcwd()
+            os.chdir('C:\\Windows')
+
+            self.assertEqual(
+                database.sanitise_path('').lower(),
+                '/cygdrive/c/windows')
+
+            self.assertEqual(
+                database.sanitise_path('.\\system32').lower(),
+                '/cygdrive/c/windows/system32')
+
+            os.chdir(current_path)
+        elif sys.platform == 'linux2':
+            current_path = os.getcwd()
+
+            self.assertEqual(
+                database.sanitise_path(''),
+                current_path)
+
+
+            os.chdir('/home')
+
+            self.assertEqual(
+                database.sanitise_path(''),
+                '/home')
+
+            self.assertEqual(
+                database.sanitise_path('../test/path'),
+                '/test/path')
+
+
+            os.chdir('/etc')
+
+            self.assertEqual(
+                database.sanitise_path(''),
+                '/etc')
+
+            self.assertEqual(
+                database.sanitise_path('./test/path'),
+                '/etc/test/path')
+
+            os.chdir(current_path)
+        else:
+            error_message = 'Operating system "{0}" not yet supported.'
+            raise EnvironmentError(error_message.format(sys.platform))
 
 
 def get_suite():

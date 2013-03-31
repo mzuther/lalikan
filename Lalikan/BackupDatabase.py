@@ -27,6 +27,7 @@ import datetime
 import gettext
 import os
 import re
+import sys
 
 import Lalikan.Settings
 import Lalikan.Utilities
@@ -496,25 +497,37 @@ class BackupDatabase:
         return needed_backup
 
 
-    # ----- OLD CODE -----
-
+    # method can't be memoized, since results depend on current
+    # working directory!
     def sanitise_path(self, path):
+        # convert to absolute path
         path = os.path.abspath(path)
 
-        if (os.name == 'nt') and (len(path) > 0):
+        # assert that path has a length
+        assert len(path) > 0
+
+        # Windows: DAR uses Cygwin internally
+        if sys.platform == 'win32':
+            # extract drive
             (drive, tail) = os.path.splitdrive(path)
 
+            # lower space drive letter
             if drive:
                 drive = drive[0].lower()
 
+            # remove heading path separator from remaining path
             if tail.startswith(os.sep):
                 tail = tail[len(os.sep):]
 
-            path = os.path.join(os.sep, drive, 'cygdrive', tail)
-            path = path.replace('\\', '/')
+            # turn path to something like "/cygdrive/c/path/to/dar"
+            path = os.path.join(os.sep, 'cygdrive', drive, tail)
+
+            # Cygwin uses "/" as path separator
+            path = path.replace(os.sep, '/')
 
         return path
 
+    # ----- OLD CODE -----
 
     def get_backup_reference(self, backup_level):
         self._check_backup_level(backup_level)
