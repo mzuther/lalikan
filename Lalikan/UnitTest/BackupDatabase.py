@@ -97,10 +97,6 @@ class TestBackupDatabase(unittest.TestCase):
             '/usr/local/bin/dar')
 
         self.assertEqual(
-            database.get_path_to_dar_manager(),
-            '/usr/local/bin/dar_manager')
-
-        self.assertEqual(
             database.get_backup_options(),
             '--noconf --batch /etc/darrc --verbose=skipped')
 
@@ -123,10 +119,6 @@ class TestBackupDatabase(unittest.TestCase):
         self.assertEqual(
             database.get_backup_directory(),
             '/tmp/lalikan/test1')
-
-        self.assertEqual(
-            database.get_database(),
-            '/tmp/lalikan/test1/test1.dat')
 
         self.assertEqual(
             database.get_date_format(),

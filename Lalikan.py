@@ -4,7 +4,7 @@
    =======
    Backup scheduler for Disk ARchive (DAR)
 
-   Copyright (c) 2010-2013 Martin Zuther (http://www.mzuther.de/)
+   Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -464,42 +464,6 @@ class Lalikan:
 
         self.__delete_old_backups(backup_type, debugger)
 
-        if debugger:
-            return
-
-        if self.__database.get_database():
-            if not os.path.exists(self.__database.get_database()):
-                cmd = '%(dar_manager)s --create %(database)s -Q' % \
-                    {'dar_manager': self.__database.get_path_to_dar_manager(), \
-                     'database': self.sanitise_path( \
-                        self.__database.get_database())}
-
-                print('creating database: %s\n' % cmd)
-                proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
-                proc.communicate()
-                retcode = proc.wait()
-
-                if retcode > 0:
-                    # FIXME: maybe catch exceptions
-                    raise OSError('dar_manager exited with code %d' % retcode)
-
-            cmd = '%(dar_manager)s --base %(database)s --add %(catalog)s %(base)s --min-digits 2 --alter=ignore-order -Q' % \
-                {'dar_manager': self.__database.get_path_to_dar_manager(), \
-                 'database': self.sanitise_path( \
-                    self.__database.get_database()), \
-                 'catalog': self.sanitise_path(catalog_file), \
-                 'base': self.sanitise_path(base_file)}
-
-            print('updating database: %s\n' % cmd)
-            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
-            proc.communicate()
-            retcode = proc.wait()
-
-            if retcode > 0:
-                # FIXME: maybe catch exceptions
-                self.__notify_user('dar_manager exited with code %d.' % \
-                                       retcode, self._ERROR, debugger)
-
 
     def __delete_old_backups(self, backup_type, debugger):
         self.__database.check_backup_type(backup_type)
@@ -582,46 +546,6 @@ class Lalikan:
                 os.unlink(backup_file)
             for checksum_file in glob.glob(os.path.join(base_directory, '*.dar.md5')):
                 os.unlink(checksum_file)
-
-            cmd = '%(dar_manager)s --base %(database)s --list -Q' % \
-                {'dar_manager': self.__database.get_path_to_dar_manager(), \
-                 'database': self.sanitise_path( \
-                    self.__database.get_database())}
-            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, \
-                                        stdout=subprocess.PIPE)
-            output = proc.communicate()
-            retcode = proc.wait()
-
-            backup_in_database = False
-            for line in output[0].split('\n'):
-                line = line.strip()
-                if line.endswith(basename):
-                    regex_match = re.search('^([0-9]+)', line)
-                    if regex_match:
-                        backup_in_database = True
-                        backup_number = regex_match.group(0)
-                        print('updating database (removing backup #%s)' \
-                            % backup_number)
-
-                        cmd = '%(dar_manager)s --base %(database)s --delete %(number)s -Q' % \
-                            {'dar_manager': \
-                                 self.__database.get_path_to_dar_manager(), \
-                             'database': self.sanitise_path( \
-                                 self.__database.get_database()), \
-                             'number': backup_number}
-                        proc = subprocess.Popen(cmd, shell=True, \
-                                                    stdin=subprocess.PIPE)
-                        proc.communicate()
-                        retcode = proc.wait()
-
-                        if retcode != 0:
-                            print('could not update database')
-                        else:
-                            print()
-
-
-            if not backup_in_database:
-                print('database not updated (backup not found)\n') \
 
 
     def __get_backup_size(self, base_file):

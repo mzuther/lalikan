@@ -4,7 +4,7 @@
    =======
    Backup scheduler for Disk ARchive (DAR)
 
-   Copyright (c) 2010-2013 Martin Zuther (http://www.mzuther.de/)
+   Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,6 @@ class BackupDatabase:
                                                port_not_required)
 
         self._backup_directory = get_setting('backup_directory', False)
-        self._backup_database = get_setting('backup_database', True)
 
         self._backup_interval = {}
         self._backup_postfixes = {}
@@ -71,7 +70,6 @@ class BackupDatabase:
 
         self._backup_options = get_setting('backup_options', True)
         self._path_to_dar = get_setting('path_to_dar', True)
-        self._path_to_dar_manager = get_setting('path_to_dar_manager', True)
 
         self._date_format = get_setting('date_format', False)
         self._date_regex = get_setting('date_regex', False)
@@ -101,10 +99,6 @@ class BackupDatabase:
         return self._path_to_dar
 
 
-    def get_path_to_dar_manager(self):
-        return self._path_to_dar_manager
-
-
     def get_backup_interval(self, backup_level):
         self._check_backup_level(backup_level)
         return self._backup_interval[backup_level]
@@ -121,10 +115,6 @@ class BackupDatabase:
 
     def get_backup_options(self):
         return self._backup_options
-
-
-    def get_database(self):
-        return self._backup_database
 
 
     def get_date_format(self):

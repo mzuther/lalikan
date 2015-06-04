@@ -12,7 +12,7 @@ class TestSettings(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
         self.version = '0.17'
-        self.copyright_year = '2013'
+        self.copyright_year = '2015'
 
         module_path = os.path.dirname(os.path.realpath(__file__))
         self.config_filename = os.path.join(module_path, 'test.ini')
@@ -29,10 +29,6 @@ class TestSettings(unittest.TestCase):
             'localhost')
 
         self.assertEqual(
-            self.settings.get(self.section, 'backup_database', False),
-            '/tmp/lalikan/test1/test1.dat')
-
-        self.assertEqual(
             self.settings.get(self.section, 'XXXXXX_database', True),
             '')
 
@@ -40,7 +36,7 @@ class TestSettings(unittest.TestCase):
             self.settings.get(self.section, 'XXXXXX_database', False)
 
         with self.assertRaises(configparser.NoSectionError):
-            self.settings.get('no_section', 'backup_database', False)
+            self.settings.get('no_section', 'backup_client', False)
 
 
     def test_options(self):
