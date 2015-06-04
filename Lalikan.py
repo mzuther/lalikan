@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Lalikan
    =======
@@ -191,7 +190,7 @@ class Lalikan:
         self.__database = Lalikan.BackupDatabase.BackupDatabase( \
             section, settings, debugger)
 
-        if not debugger and (sys.platform == 'linux2'):
+        if not debugger and (sys.platform == 'linux'):
             # check whether the script runs with superuser rights
             if (os.getuid() != 0) or (os.getgid() != 0):
                 print('\n%s\n' % \
@@ -663,7 +662,7 @@ class Lalikan:
             # do not expire warnings and errors
             expiration = 0
 
-        if not debugger and (sys.platform == 'linux2'):
+        if not debugger and (sys.platform == 'linux'):
             cmd = "notify-send -t %(expiration)d -u %(urgency)s -i %(icon)s '%(summary)s' '%(message)s'" % \
                 {'expiration': expiration * 1000, \
                  'urgency': 'normal', \
@@ -687,17 +686,21 @@ class Lalikan:
 
 
 if __name__ == '__main__':
-    python_version = sys.version_info.major + sys.version_info.minor / 10
-    error_string = 'Lalikan does not run on Python {0}.'.format(python_version)
-    assert 3.0 < python_version <= 3.9, error_string
+    try:
+        if sys.version_info.major != 3:
+            error_string = 'Lalikan does not run on Python {0}.'
+            raise EnvironmentError(error_string.format(sys.version_info.major))
 
-    print('\n  Lalikan is not ready for Python 3 yet...\n')
-    exit(1)
+        raise EnvironmentError('Lalikan is not ready for Python 3 yet.')
 
-    lalikan = Lalikan()
+        lalikan = Lalikan()
 
-    DEBUG = False
-    if DEBUG:
-        lalikan.test(60, interval=1.0)
-    else:
-        lalikan.run()
+        DEBUG = False
+        if DEBUG:
+            lalikan.test(60, interval=1.0)
+        else:
+            lalikan.run()
+
+    except EnvironmentError as err:
+        print('\n  {0}\n'.format(err))
+        exit(1)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Lalikan
    =======
@@ -24,53 +23,59 @@
 
 """
 
-import os.path
+import importlib
 import sys
 import unittest
 
-import Lalikan.UnitTest.BackupDatabase
-import Lalikan.UnitTest.Settings
+# available unit tests
+valid_tests = [
+    'Lalikan.UnitTest.BackupDatabase',
+    'Lalikan.UnitTest.Settings',
+]
 
+# sort available unit tests by name
+valid_tests = sorted(valid_tests)
 
-if __name__ == '__main__':
+# get specified unit tests (if any) from command line
+specified_tests = sorted(sys.argv[1:])
 
-    def run_tests(module_name, module_import):
-        verbosity = 0
-        test_runner = unittest.TextTestRunner(verbosity=verbosity)
-
-        print('\n' + module_name)
-        eval('test_runner.run({0}.get_suite())'.format(module_import))
-
-
-    valid_tests = {
-        'Lalikan.BackupDatabase': 'Lalikan.UnitTest.BackupDatabase',
-        'Lalikan.Settings': 'Lalikan.UnitTest.Settings',
-    }
-
-    if 'help' in sys.argv:
-        print('\n    Usage: {0} [module1] [module2] [...]'.format(
-                os.path.basename(__file__)))
-        print('\n    Valid test suites are:\n')
-        for key in sorted(valid_tests):
-            print('    * ' + key)
-        print()
-        exit(0)
-
-    specified_tests = sorted(set(sys.argv[1:]))
+# some unit tests were specified on the command line
+if specified_tests:
+    # loop over specified unit tests
     for test_suite in specified_tests:
+        # check if unit test exists
         if test_suite not in valid_tests:
-            print('\n    No test suite found in module "{0}".'.format(
-                    test_suite))
-            print('\n    Valid test suites are:\n')
-            for key in sorted(valid_tests):
-                print('    * ' + key)
-            print()
+            print('')
+            print('    No test suite found in module "{}".'.format(test_suite))
+            print('')
+            print('    Valid test suites are:')
+            print('')
+
+            # list available unit tests
+            for test_class in valid_tests:
+                print('    * ' + test_class)
+            print('')
+
+            # signal error
             exit(1)
+# otherwise, run the whole lot
+else:
+    specified_tests = valid_tests
 
-    if len(specified_tests) == 0:
-        specified_tests = sorted(set(valid_tests))
+# initialise test runner
+verbosity = 0
+test_runner = unittest.TextTestRunner(verbosity=verbosity)
 
-    for test_suite in specified_tests:
-        run_tests(test_suite, valid_tests[test_suite])
+# loop over specified unit tests
+for test_suite in specified_tests:
+    # output name of unit test class
+    print('')
+    print(test_suite)
 
-    print()
+    # import unit test
+    module = importlib.import_module(test_suite)
+
+    # run unit test
+    test_runner.run(module.get_suite())
+
+print('')

@@ -194,19 +194,24 @@ Thank you for using free software!"""
         return eval('self._{0}'.format(option))
 
 
-    def get_description(self, long_description):
+    def get_description(self, long_description, application_name=None):
         """Return application description as string.
 
         Keyword arguments:
         long_description -- Boolean indication whether to output long
         version of description
+        application_name -- optional string holding the application's
+        name (defaults to application name set in this file)
 
         Return value:
         Formatted string containing application description
 
         """
+        if application_name is None:
+            application_name = self.get_option('application')
+
         description = '{application} v{version}'.format(
-            application=self.get_option('application'),
+            application=application_name,
             version=self.get_option('version'))
 
         description += '\n' + '=' * len(description)
