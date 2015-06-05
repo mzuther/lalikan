@@ -23,6 +23,8 @@
 
 """
 
+import collections
+import functools
 import gettext
 import os
 
@@ -33,11 +35,54 @@ gettext.textdomain('Lalikan')
 _ = gettext.lgettext
 
 
-# "@memoize" decorator; please not that it ignores **kwargs!
-def memoize(function):
-    memoize_cache = {}
-    def wrapper(*args):
-        if args not in memoize_cache:
-            memoize_cache[args] = function(*args)
-        return memoize_cache[args]
-    return wrapper
+# @Memoized decorator; please note that it ignores **kwargs!  Adapted
+# from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
+class Memoized(object):
+   '''Decorator. Caches a function's return value each time it is called.
+      If called later with the same arguments, the cached value is
+      returned rather than computing the result again.
+
+   '''
+   def __init__(self, func):
+      self.func = func
+      self.clear_cache()
+
+
+   def __call__(self, *args):
+      # Uncacheable, for instances a list.  Better to not cache
+      # than to blow up...
+      if not isinstance(args, collections.Hashable):
+         return self.func(*args)
+
+      # Result already in cache
+      if args in self.cache:
+         self.hits += 1
+         return self.cache[args]
+      # Calculate result and store in cache
+      else:
+         self.misses += 1
+
+         value = self.func(*args)
+         self.cache[args] = value
+         return value
+
+
+   def __get__(self, obj, objtype):
+      '''Support instance methods.
+
+      '''
+      return functools.partial(self.__call__, obj)
+
+
+   def __str__(self):
+      return '{hits} hits, {misses} misses.'.format(**self.cache_info())
+
+
+   def cache_info(self):
+      return {'hits': self.hits, 'misses': self.misses}
+
+
+   def clear_cache(self):
+      self.cache = {}
+      self.hits = 0
+      self.misses = 0

@@ -129,7 +129,7 @@ class BackupDatabase:
         return self._command_post_run
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def calculate_backup_schedule(self, now):
         # initialise dict to hold scheduled backup times
         backup_start_times = {}
@@ -217,7 +217,7 @@ class BackupDatabase:
         return backup_schedule
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def __last_scheduled_backup(self, backup_level, now):
         # find scheduled backups
         scheduled_backups = self.calculate_backup_schedule(now)
@@ -256,7 +256,7 @@ class BackupDatabase:
         return None
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def last_scheduled_backup(self, backup_level, now):
         self._check_backup_level(backup_level)
 
@@ -300,7 +300,7 @@ class BackupDatabase:
             return incr
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def next_scheduled_backup(self, backup_level, now):
         self._check_backup_level(backup_level)
 
@@ -395,7 +395,7 @@ class BackupDatabase:
         return found_backups
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def last_existing_backup(self, backup_level, now):
         self._check_backup_level(backup_level)
 
@@ -434,7 +434,7 @@ class BackupDatabase:
         assert False, "this part of the code should never be reached!"
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def days_overdue(self, backup_level, now):
         last_scheduled = self.last_scheduled_backup(backup_level, now)
         last_existing = self.last_existing_backup(backup_level, now)
@@ -462,7 +462,7 @@ class BackupDatabase:
         return days_overdue
 
 
-    @Lalikan.Utilities.memoize
+    @Lalikan.Utilities.Memoized
     def backup_needed(self, now, force_backup):
         # do we need to execute a "full" backup?
         if self.days_overdue('full', now) >= 0.0:
