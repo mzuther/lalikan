@@ -48,7 +48,7 @@ class BackupDatabase:
         self._backup_client = get_setting('backup_client', False)
 
         # for local backups, a port number is not required
-        port_not_required = (self._backup_client == 'localhost')
+        port_not_required = (self.backup_client == 'localhost')
         self._backup_client_port = get_setting('backup_client_port',
                                                port_not_required)
 
@@ -75,10 +75,80 @@ class BackupDatabase:
         self._date_regex = get_setting('date_regex', False)
 
         self._backup_start_time = datetime.datetime.strptime(
-            get_setting('backup_start_time', False), self._date_format)
+            get_setting('backup_start_time', False), self.date_format)
 
         self._command_pre_run = get_setting('command_pre_run', True)
         self._command_post_run = get_setting('command_post_run', True)
+
+
+    @property
+    def backup_client(self):
+        return self._backup_client
+
+
+    @property
+    def backup_client_port(self):
+        return self._backup_client_port
+
+
+    @property
+    def path_to_dar(self):
+        return self._path_to_dar
+
+
+    @property
+    def backup_directory(self):
+        return self._backup_directory
+
+
+    @property
+    def backup_interval_full(self):
+        return self._backup_interval['full']
+
+
+    @property
+    def backup_interval_diff(self):
+        return self._backup_interval['differential']
+
+
+    @property
+    def backup_interval_incr(self):
+        return self._backup_interval['incremental']
+
+
+    @property
+    def backup_postfix_full(self):
+        return self._backup_postfixes['full']
+
+
+    @property
+    def backup_postfix_diff(self):
+        return self._backup_postfixes['differential']
+
+
+    @property
+    def backup_postfix_incr(self):
+        return self._backup_postfixes['incremental']
+
+
+    @property
+    def backup_options(self):
+        return self._backup_options
+
+
+    @property
+    def date_format(self):
+        return self._date_format
+
+
+    @property
+    def pre_run_command(self):
+        return self._command_pre_run
+
+
+    @property
+    def post_run_command(self):
+        return self._command_post_run
 
 
     def _check_backup_level(self, backup_level):
@@ -87,61 +157,18 @@ class BackupDatabase:
                 'wrong backup level given ("{0}")'.format(backup_level))
 
 
-    def get_backup_client(self):
-        return self._backup_client
-
-
-    def get_backup_client_port(self):
-        return self._backup_client_port
-
-
-    def get_path_to_dar(self):
-        return self._path_to_dar
-
-
-    def get_backup_interval(self, backup_level):
-        self._check_backup_level(backup_level)
-        return self._backup_interval[backup_level]
-
-
-    def get_backup_directory(self):
-        return self._backup_directory
-
-
-    def get_backup_postfix(self, backup_level):
-        self._check_backup_level(backup_level)
-        return self._backup_postfixes[backup_level]
-
-
-    def get_backup_options(self):
-        return self._backup_options
-
-
-    def get_date_format(self):
-        return self._date_format
-
-
-    def get_pre_run_command(self):
-        return self._command_pre_run
-
-
-    def get_post_run_command(self):
-        return self._command_post_run
-
-
     @Lalikan.Utilities.Memoized
     def calculate_backup_schedule(self, now):
         # initialise dict to hold scheduled backup times
         backup_start_times = {}
-        for backup_level in self._backup_levels:
-            postfix = self.get_backup_postfix(backup_level)
+        for postfix in self._backup_postfixes.values():
             backup_start_times[postfix] = []
 
         # initialise variables to calculate all scheduled "full"
         # backups until given date
         current_backup_start_time = self._backup_start_time
         backup_end_time = now
-        delta = datetime.timedelta(self._backup_interval['full'])
+        delta = datetime.timedelta(self.backup_interval_full)
 
         # calculate all scheduled "full" backups until given date
         while current_backup_start_time <= backup_end_time:
@@ -166,7 +193,7 @@ class BackupDatabase:
             # "differential" backups until given date
             current_backup_start_time = backup_start_times['diff'][0]
             backup_end_time = backup_start_times['diff'][-1]
-            delta = datetime.timedelta(self._backup_interval['differential'])
+            delta = datetime.timedelta(self.backup_interval_diff)
 
             # move one backup cycle from last scheduled "full" backup
             current_backup_start_time += delta
@@ -185,7 +212,7 @@ class BackupDatabase:
                 # "incremental" backups until given date
                 current_backup_start_time = backup_start_times['diff'][n]
                 backup_end_time = backup_start_times['diff'][n + 1]
-                delta = datetime.timedelta(self._backup_interval['incremental'])
+                delta = datetime.timedelta(self.backup_interval_incr)
 
                 # move one backup cycle from last scheduled "full" or
                 # "differential" backup
@@ -202,8 +229,7 @@ class BackupDatabase:
 
         # consolidate backup start times into a single list
         consolidation = []
-        for backup_level in self._backup_levels:
-            postfix = self.get_backup_postfix(backup_level)
+        for postfix in self._backup_postfixes.values():
             for backup_start_time in backup_start_times[postfix]:
                 consolidation.append((backup_start_time, postfix))
 
@@ -347,9 +373,9 @@ class BackupDatabase:
         found_backups = []
 
         # find all subdirectories in backup directory
-        for dirname in os.listdir(self._backup_directory):
+        for dirname in os.listdir(self.backup_directory):
             # convert found path to absolute path
-            full_path = os.path.join(self._backup_directory, dirname)
+            full_path = os.path.join(self.backup_directory, dirname)
 
             # check whether found path is a directory ...
             if os.path.isdir(full_path):
@@ -382,7 +408,7 @@ class BackupDatabase:
                 # convert timestamp to "datetime" object
                 timestamp = found_backup[0]
                 backup_date = datetime.datetime.strptime(
-                    timestamp, self._date_format)
+                    timestamp, self.date_format)
 
                 # keep backups prior to (or at!) given date
                 if backup_date <= prior_date:
@@ -426,7 +452,7 @@ class BackupDatabase:
             # any of the accepted levels
             if found_backups[index][1] in accepted_levels:
                 last_existing = datetime.datetime.strptime(
-                    found_backups[index][0], self._date_format)
+                    found_backups[index][0], self.date_format)
                 backup_level = found_backups[index][1]
 
                 return (last_existing, backup_level)
@@ -530,7 +556,7 @@ class BackupDatabase:
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{0}-catalog'.format(reference_timestamp)
 
-            full_path = os.path.join(self.get_backup_directory(),
+            full_path = os.path.join(self.backup_directory,
                                      reference_base, reference_catalog)
             reference_option = '--ref ' + self.sanitise_path(full_path)
         elif backup_level == 'incremental':
@@ -553,7 +579,7 @@ class BackupDatabase:
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{0}-catalog'.format(reference_timestamp)
 
-            full_path = os.path.join(self.get_backup_directory(),
+            full_path = os.path.join(self.backup_directory,
                                      reference_base, reference_catalog)
             reference_option = '--ref ' + self.sanitise_path(full_path)
 

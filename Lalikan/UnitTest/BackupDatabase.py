@@ -85,51 +85,59 @@ class TestBackupDatabase(unittest.TestCase):
             'Test1', self.settings)
 
         self.assertEqual(
-            database.get_backup_client(),
+            database.backup_client,
             'localhost')
 
         self.assertEqual(
-            database.get_backup_client_port(),
+            database.backup_client_port,
             '1234')
 
         self.assertEqual(
-            database.get_path_to_dar(),
+            database.path_to_dar,
             '/usr/local/bin/dar')
 
         self.assertEqual(
-            database.get_backup_options(),
+            database.backup_options,
             '--noconf --batch /etc/darrc --verbose=skipped')
 
         self.assertEqual(
-            database.get_backup_interval('full'),
+            database.backup_interval_full,
             9.5)
 
         self.assertEqual(
-            database.get_backup_interval('differential'),
+            database.backup_interval_diff,
             4.0)
 
         self.assertEqual(
-            database.get_backup_interval('incremental'),
+            database.backup_interval_incr,
             1.0)
 
         self.assertEqual(
-            database.get_backup_postfix('differential'),
+            database.backup_postfix_full,
+            'full')
+
+        self.assertEqual(
+            database.backup_postfix_diff,
             'diff')
 
         self.assertEqual(
-            database.get_backup_directory(),
+            database.backup_postfix_incr,
+            'incr')
+
+        self.assertEqual(
+            database.backup_directory,
             '/tmp/lalikan/test1')
 
         self.assertEqual(
-            database.get_date_format(),
+            database.date_format,
             '%Y-%m-%d_%H%M')
 
         self.assertEqual(
-            database.get_pre_run_command(),
+            database.pre_run_command,
             'sudo mount -o remount,rw /mnt/backup/')
 
         self.assertEqual(
-            database.get_post_run_command(),
+            database.post_run_command,
             'sudo mount -o remount,ro /mnt/backup/')
 
 
@@ -255,7 +263,7 @@ full:  2012-01-20 20:00:00
 
         database = Lalikan.BackupDatabase.BackupDatabase(
             'Test2', self.settings)
-        backup_directory = database.get_backup_directory()
+        backup_directory = database.backup_directory
 
         try:
             assert not os.path.exists(backup_directory)
@@ -498,7 +506,7 @@ full:  2012-01-20 20:00:00
     def test_find_old_backups(self):
         database = Lalikan.BackupDatabase.BackupDatabase(
             'Test1', self.settings)
-        backup_directory = database.get_backup_directory()
+        backup_directory = database.backup_directory
 
         try:
             assert not os.path.exists(backup_directory)
@@ -582,7 +590,7 @@ full:  2012-01-20 20:00:00
 
         database = Lalikan.BackupDatabase.BackupDatabase(
             'Test1', self.settings)
-        backup_directory = database.get_backup_directory()
+        backup_directory = database.backup_directory
 
         try:
             assert not os.path.exists(backup_directory)
@@ -684,7 +692,7 @@ full:  2012-01-20 20:00:00
 
         database = Lalikan.BackupDatabase.BackupDatabase(
             'Test1', self.settings)
-        backup_directory = database.get_backup_directory()
+        backup_directory = database.backup_directory
 
         try:
             assert not os.path.exists(backup_directory)
