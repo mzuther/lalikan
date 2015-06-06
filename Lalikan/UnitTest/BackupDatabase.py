@@ -85,14 +85,6 @@ class TestBackupDatabase(unittest.TestCase):
             'Test1', self.settings)
 
         self.assertEqual(
-            database.backup_client,
-            'localhost')
-
-        self.assertEqual(
-            database.backup_client_port,
-            '1234')
-
-        self.assertEqual(
             database.path_to_dar,
             '/usr/local/bin/dar')
 

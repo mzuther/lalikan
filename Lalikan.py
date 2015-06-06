@@ -29,7 +29,6 @@ import glob
 import locale
 import os
 import re
-import socket
 import subprocess
 import sys
 import time
@@ -199,9 +198,6 @@ class Lalikan:
                     _('You have to run this application with superuser rights.'))
                 exit(1)
 
-        if not self.__client_is_online():
-            return False
-
         if not debugger:
             self.__pre_run(section, debugger)
 
@@ -236,39 +232,6 @@ class Lalikan:
                 self.__post_run(section, need_backup, debugger)
 
         return True
-
-
-    def __client_is_online(self):
-        # running DAR on localhost -- should be online ... :)
-        if self.db.backup_client == 'localhost':
-            return True
-
-        # check port availability up to three times
-        for n in range(3):
-            # wait 10 seconds between checks
-            if n > 0:
-                time.sleep(10.0)
-
-            # initialise socket and time-out
-            port = socket.socket()
-            port.settimeout(2.0)
-
-            try:
-                # check port
-                port.connect((self.db.backup_client,
-                              int(self.db.backup_client_port)))
-
-                # client is online
-                return True
-            except Exception as err:
-                # an error occurred
-                print(err)
-
-        # no connection to client possible
-        print('Host "%(host)s" does not listen on port %(port)s.' % \
-            {'host': self.db.backup_client,
-             'port': self.db.backup_client_port})
-        return False
 
 
     def __remove_empty_directories__(self):

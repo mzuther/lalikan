@@ -25,18 +25,18 @@ class TestSettings(unittest.TestCase):
 
     def test_get(self):
         self.assertEqual(
-            self.settings.get(self.section, 'backup_client', False),
-            'localhost')
+            self.settings.get(self.section, 'backup_directory', False),
+            '/tmp/lalikan/test1')
 
         self.assertEqual(
-            self.settings.get(self.section, 'XXXXXX_database', True),
+            self.settings.get(self.section, 'XXXXXX_directory', True),
             '')
 
         with self.assertRaises(configparser.NoOptionError):
-            self.settings.get(self.section, 'XXXXXX_database', False)
+            self.settings.get(self.section, 'XXXXXX_directory', False)
 
         with self.assertRaises(configparser.NoSectionError):
-            self.settings.get('no_section', 'backup_client', False)
+            self.settings.get('no_section', 'backup_directory', False)
 
 
     def test_options(self):

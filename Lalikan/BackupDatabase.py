@@ -45,13 +45,6 @@ class BackupDatabase:
             return settings.get(section, setting, allow_empty)
 
         self._section = section
-        self._backup_client = get_setting('backup_client', False)
-
-        # for local backups, a port number is not required
-        port_not_required = (self.backup_client == 'localhost')
-        self._backup_client_port = get_setting('backup_client_port',
-                                               port_not_required)
-
         self._backup_directory = get_setting('backup_directory', False)
 
         self._backup_interval = {}
@@ -79,16 +72,6 @@ class BackupDatabase:
 
         self._command_pre_run = get_setting('command_pre_run', True)
         self._command_post_run = get_setting('command_post_run', True)
-
-
-    @property
-    def backup_client(self):
-        return self._backup_client
-
-
-    @property
-    def backup_client_port(self):
-        return self._backup_client_port
 
 
     @property
