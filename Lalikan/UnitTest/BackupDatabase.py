@@ -125,6 +125,10 @@ class TestBackupDatabase(unittest.TestCase):
             '%Y-%m-%d_%H%M')
 
         self.assertEqual(
+            database.date_regex,
+            '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}')
+
+        self.assertEqual(
             database.pre_run_command,
             'sudo mount -o remount,rw /mnt/backup/')
 

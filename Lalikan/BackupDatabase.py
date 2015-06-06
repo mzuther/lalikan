@@ -29,7 +29,6 @@ import os
 import re
 import sys
 
-import Lalikan.Settings
 import Lalikan.Utilities
 
 # initialise localisation settings
@@ -41,97 +40,101 @@ _ = gettext.lgettext
 
 class BackupDatabase:
     def __init__(self, section, settings):
-        def get_setting(setting, allow_empty):
-            return settings.get(section, setting, allow_empty)
-
         self._section = section
-        self._backup_directory = get_setting('backup_directory', False)
+        self._settings = settings
 
-        self._backup_interval = {}
+        self._backup_intervals = {}
         self._backup_postfixes = {}
         self._last_backup_days = {}
         self._last_backup_file = {}
 
-        self._backup_levels = ('full', 'differential', 'incremental')
-        for backup_level in self._backup_levels:
-            self._backup_interval[backup_level] = float(get_setting(
-                'backup_interval_{0}'.format(backup_level), False))
+        for backup_level in ('full', 'differential', 'incremental'):
+            self._backup_intervals[backup_level] = float(self.get_setting(
+                'backup_interval_{0}'.format(backup_level)))
 
             self._backup_postfixes[backup_level] = backup_level[:4]
             self._last_backup_days[backup_level] = None
             self._last_backup_file[backup_level] = None
 
-        self._backup_options = get_setting('backup_options', True)
-        self._path_to_dar = get_setting('path_to_dar', True)
-
-        self._date_format = get_setting('date_format', False)
-        self._date_regex = get_setting('date_regex', False)
-
         self._backup_start_time = datetime.datetime.strptime(
-            get_setting('backup_start_time', False), self.date_format)
+            self.get_setting('backup_start_time'), self.date_format)
 
-        self._command_pre_run = get_setting('command_pre_run', True)
-        self._command_post_run = get_setting('command_post_run', True)
+
+    def get_setting(self, setting, allow_empty=False):
+        return self._settings.get(self._section, setting, allow_empty)
 
 
     @property
     def path_to_dar(self):
-        return self._path_to_dar
+        return self.get_setting('path_to_dar')
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_directory(self):
-        return self._backup_directory
+        return self.get_setting('backup_directory')
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_interval_full(self):
-        return self._backup_interval['full']
+        return self._backup_intervals['full']
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_interval_diff(self):
-        return self._backup_interval['differential']
+        return self._backup_intervals['differential']
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_interval_incr(self):
-        return self._backup_interval['incremental']
+        return self._backup_intervals['incremental']
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_postfix_full(self):
         return self._backup_postfixes['full']
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_postfix_diff(self):
         return self._backup_postfixes['differential']
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def backup_postfix_incr(self):
         return self._backup_postfixes['incremental']
 
 
     @property
     def backup_options(self):
-        return self._backup_options
+        return self.get_setting('backup_options', True)
 
 
     @property
+    @Lalikan.Utilities.Memoized
     def date_format(self):
-        return self._date_format
+        return self.get_setting('date_format')
+
+
+    @property
+    def date_regex(self):
+        return self.get_setting('date_regex')
 
 
     @property
     def pre_run_command(self):
-        return self._command_pre_run
+        return self.get_setting('command_pre_run', True)
 
 
     @property
     def post_run_command(self):
-        return self._command_post_run
+        return self.get_setting('command_post_run', True)
 
 
     def _check_backup_level(self, backup_level):
@@ -349,7 +352,7 @@ class BackupDatabase:
     def find_old_backups(self, prior_date=None):
         # prepare regex to filter valid backups
         regex_backup_postfixes = '|'.join(self._backup_postfixes.values())
-        regex = re.compile('^({0})-({1})$'.format(self._date_regex,
+        regex = re.compile('^({0})-({1})$'.format(self.date_regex,
                                                   regex_backup_postfixes))
 
         # look for created backups (either real or simulated)
