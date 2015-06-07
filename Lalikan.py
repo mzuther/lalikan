@@ -189,7 +189,7 @@ class Lalikan:
 
     def __run(self, section, debugger=None):
         self.db = Lalikan.BackupDatabase.BackupDatabase(
-            section, settings, debugger)
+            settings, section, debugger)
 
         if not debugger and (sys.platform == 'linux'):
             # check whether the script runs with superuser rights

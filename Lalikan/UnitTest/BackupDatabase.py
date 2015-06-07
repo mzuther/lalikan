@@ -64,7 +64,7 @@ class TestBackupDatabase(unittest.TestCase):
 
     def test_check_backup_level(self):
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
 
         database._check_backup_level('full')
         database._check_backup_level('incremental')
@@ -82,7 +82,7 @@ class TestBackupDatabase(unittest.TestCase):
 
     def test_get_settings(self):
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
 
         self.assertEqual(
             database.path_to_dar,
@@ -152,7 +152,7 @@ class TestBackupDatabase(unittest.TestCase):
 
     def test_calculate_backup_schedule_1(self):
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
 
         # just before first scheduled "full" backup
         current_datetime = datetime.datetime(year=2012, month=1, day=1,
@@ -258,7 +258,7 @@ full:  2012-01-20 20:00:00
 
 
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test2', self.settings)
+            self.settings, 'Test2')
         backup_directory = database.backup_directory
 
         try:
@@ -501,7 +501,7 @@ full:  2012-01-20 20:00:00
 
     def test_find_old_backups(self):
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
         backup_directory = database.backup_directory
 
         try:
@@ -585,7 +585,7 @@ full:  2012-01-20 20:00:00
 
 
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
         backup_directory = database.backup_directory
 
         try:
@@ -687,7 +687,7 @@ full:  2012-01-20 20:00:00
 
 
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
         backup_directory = database.backup_directory
 
         try:
@@ -1143,7 +1143,7 @@ full:  2012-01-20 20:00:00
 
     def test_sanitise_path(self):
         database = Lalikan.BackupDatabase.BackupDatabase(
-            'Test1', self.settings)
+            self.settings, 'Test1')
 
         if sys.platform == 'win32':
             current_path = os.getcwd()

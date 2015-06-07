@@ -39,25 +39,23 @@ _ = gettext.lgettext
 
 
 class BackupDatabase:
-    def __init__(self, section, settings):
-        self._section = section
+    def __init__(self, settings, section):
+        # Lalikan settings (such as backup directory)
         self._settings = settings
 
-        self._backup_intervals = {}
-        self._backup_postfixes = {}
-        self._last_backup_days = {}
-        self._last_backup_file = {}
+        # backup section (such as "Workstation", "Server" etc.)
+        self._section = section
 
-        for backup_level in ('full', 'differential', 'incremental'):
-            self._backup_intervals[backup_level] = float(self.get_setting(
-                'backup_interval_{0}'.format(backup_level)))
-
-            self._backup_postfixes[backup_level] = backup_level[:4]
-            self._last_backup_days[backup_level] = None
-            self._last_backup_file[backup_level] = None
-
-        self._backup_start_time = datetime.datetime.strptime(
-            self.get_setting('backup_start_time'), self.date_format)
+        # backup file name postfixes time for all backup levels
+        #
+        # full:          complete backup, contains everything
+        # differential:  contains all changes since last full backup
+        # incremental:   contains all changes since last backup
+        self._backup_postfixes = {
+            'full': 'full',
+            'differential': 'diff',
+            'incremental': 'incr'
+        }
 
 
     def get_setting(self, setting, allow_empty=False):
@@ -78,19 +76,22 @@ class BackupDatabase:
     @property
     @Lalikan.Utilities.Memoized
     def backup_interval_full(self):
-        return self._backup_intervals['full']
+        interval = self.get_setting('backup_interval_full')
+        return float(interval)
 
 
     @property
     @Lalikan.Utilities.Memoized
     def backup_interval_diff(self):
-        return self._backup_intervals['differential']
+        interval = self.get_setting('backup_interval_differential')
+        return float(interval)
 
 
     @property
     @Lalikan.Utilities.Memoized
     def backup_interval_incr(self):
-        return self._backup_intervals['incremental']
+        interval = self.get_setting('backup_interval_incremental')
+        return float(interval)
 
 
     @property
@@ -114,6 +115,13 @@ class BackupDatabase:
     @property
     def backup_options(self):
         return self.get_setting('backup_options', True)
+
+
+    @property
+    @Lalikan.Utilities.Memoized
+    def backup_start_time(self):
+        start_time = self.get_setting('backup_start_time')
+        return datetime.datetime.strptime(start_time, self.date_format)
 
 
     @property
@@ -152,7 +160,7 @@ class BackupDatabase:
 
         # initialise variables to calculate all scheduled "full"
         # backups until given date
-        current_backup_start_time = self._backup_start_time
+        current_backup_start_time = self.backup_start_time
         backup_end_time = now
         delta = datetime.timedelta(self.backup_interval_full)
 
@@ -488,7 +496,7 @@ class BackupDatabase:
         # did we force creation of a backup?
         elif force_backup:
             # cannot force backup before schedule begins
-            if now < self._backup_start_time:
+            if now < self.backup_start_time:
                 needed_backup = None
             else:
                 needed_backup = 'forced'
