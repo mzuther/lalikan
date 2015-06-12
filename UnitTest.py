@@ -29,8 +29,8 @@ import unittest
 
 # available unit tests
 valid_tests = [
-    'Lalikan.UnitTest.BackupDatabase',
-    'Lalikan.UnitTest.Settings',
+    'lalikan.unittest.database',
+    'lalikan.unittest.settings',
 ]
 
 # sort available unit tests by name

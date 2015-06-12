@@ -29,7 +29,7 @@ import os
 import re
 import sys
 
-import Lalikan.Utilities
+import lalikan.utilities
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))
@@ -58,56 +58,59 @@ class BackupDatabase:
         }
 
 
+    # Query Lalikan settings for specified setting.
     def get_setting(self, setting, allow_empty=False):
         return self._settings.get(self._section, setting, allow_empty)
 
 
+    # Get file path to dar executable
     @property
     def path_to_dar(self):
         return self.get_setting('path_to_dar')
 
 
+    # Get backup directory
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_directory(self):
         return self.get_setting('backup_directory')
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_interval_full(self):
         interval = self.get_setting('backup_interval_full')
         return float(interval)
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_interval_diff(self):
         interval = self.get_setting('backup_interval_differential')
         return float(interval)
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_interval_incr(self):
         interval = self.get_setting('backup_interval_incremental')
         return float(interval)
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_postfix_full(self):
         return self._backup_postfixes['full']
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_postfix_diff(self):
         return self._backup_postfixes['differential']
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_postfix_incr(self):
         return self._backup_postfixes['incremental']
 
@@ -118,14 +121,14 @@ class BackupDatabase:
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_start_time(self):
         start_time = self.get_setting('backup_start_time')
         return datetime.datetime.strptime(start_time, self.date_format)
 
 
     @property
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def date_format(self):
         return self.get_setting('date_format')
 
@@ -151,7 +154,7 @@ class BackupDatabase:
                 'wrong backup level given ("{0}")'.format(backup_level))
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def calculate_backup_schedule(self, now):
         # initialise dict to hold scheduled backup times
         backup_start_times = {}
@@ -237,7 +240,7 @@ class BackupDatabase:
         return backup_schedule
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def __last_scheduled_backup(self, backup_level, now):
         # find scheduled backups
         scheduled_backups = self.calculate_backup_schedule(now)
@@ -276,7 +279,7 @@ class BackupDatabase:
         return None
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def last_scheduled_backup(self, backup_level, now):
         self._check_backup_level(backup_level)
 
@@ -320,7 +323,7 @@ class BackupDatabase:
             return incr
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def next_scheduled_backup(self, backup_level, now):
         self._check_backup_level(backup_level)
 
@@ -415,7 +418,7 @@ class BackupDatabase:
         return found_backups
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def last_existing_backup(self, backup_level, now):
         self._check_backup_level(backup_level)
 
@@ -454,7 +457,7 @@ class BackupDatabase:
         assert False, "this part of the code should never be reached!"
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def days_overdue(self, backup_level, now):
         last_scheduled = self.last_scheduled_backup(backup_level, now)
         last_existing = self.last_existing_backup(backup_level, now)
@@ -482,7 +485,7 @@ class BackupDatabase:
         return days_overdue
 
 
-    @Lalikan.Utilities.Memoized
+    @lalikan.utilities.Memoized
     def backup_needed(self, now, force_backup):
         # do we need to execute a "full" backup?
         if self.days_overdue('full', now) >= 0.0:

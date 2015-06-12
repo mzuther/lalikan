@@ -4,7 +4,7 @@ import configparser
 import os.path
 import unittest
 
-import Lalikan.Settings
+import lalikan.settings
 
 
 class TestSettings(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestSettings(unittest.TestCase):
 
         module_path = os.path.dirname(os.path.realpath(__file__))
         self.config_filename = os.path.join(module_path, 'test.ini')
-        self.settings = Lalikan.Settings.Settings(self.config_filename)
+        self.settings = lalikan.settings.Settings(self.config_filename)
         self.section = 'Test1'
 
         with open(self.config_filename, 'rt', encoding='utf-8') as infile:

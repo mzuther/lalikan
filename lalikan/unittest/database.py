@@ -6,8 +6,8 @@ import shutil
 import sys
 import unittest
 
-import Lalikan.BackupDatabase
-import Lalikan.Settings
+import lalikan.database
+import lalikan.settings
 
 
 # on Windows, please note that the temporary backup directory will be
@@ -20,7 +20,7 @@ class TestBackupDatabase(unittest.TestCase):
 
         module_path = os.path.dirname(os.path.realpath(__file__))
         self.config_filename = os.path.join(module_path, 'test.ini')
-        self.settings = Lalikan.Settings.Settings(self.config_filename)
+        self.settings = lalikan.settings.Settings(self.config_filename)
 
 
     def __simulate_backups(self, database, backup_directory, faked_backups):
@@ -63,7 +63,7 @@ class TestBackupDatabase(unittest.TestCase):
 
 
     def test_check_backup_level(self):
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
 
         database._check_backup_level('full')
@@ -81,7 +81,7 @@ class TestBackupDatabase(unittest.TestCase):
 
 
     def test_get_settings(self):
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
 
         self.assertEqual(
@@ -151,7 +151,7 @@ class TestBackupDatabase(unittest.TestCase):
 
 
     def test_calculate_backup_schedule_1(self):
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
 
         # just before first scheduled "full" backup
@@ -257,7 +257,7 @@ full:  2012-01-20 20:00:00
                 incr)
 
 
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test2')
         backup_directory = database.backup_directory
 
@@ -500,7 +500,7 @@ full:  2012-01-20 20:00:00
 
 
     def test_find_old_backups(self):
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
         backup_directory = database.backup_directory
 
@@ -584,7 +584,7 @@ full:  2012-01-20 20:00:00
                 backup_incr)
 
 
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
         backup_directory = database.backup_directory
 
@@ -686,7 +686,7 @@ full:  2012-01-20 20:00:00
                 delta_incr / datetime.timedelta(days=1))
 
 
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
         backup_directory = database.backup_directory
 
@@ -1142,7 +1142,7 @@ full:  2012-01-20 20:00:00
 
 
     def test_sanitise_path(self):
-        database = Lalikan.BackupDatabase.BackupDatabase(
+        database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
 
         if sys.platform == 'win32':

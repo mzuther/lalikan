@@ -35,8 +35,8 @@ import time
 
 from optparse import OptionParser
 
-import Lalikan.BackupDatabase
-from Lalikan.Settings import *
+import lalikan.database
+from lalikan.settings import *
 
 # set standard localisation for application
 locale.setlocale(locale.LC_ALL, '')
@@ -188,7 +188,7 @@ class Lalikan:
 
 
     def __run(self, section, debugger=None):
-        self.db = Lalikan.BackupDatabase.BackupDatabase(
+        self.db = lalikan.database.BackupDatabase(
             settings, section, debugger)
 
         if not debugger and (sys.platform == 'linux'):
