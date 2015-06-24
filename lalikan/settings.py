@@ -1,28 +1,23 @@
-# -*- coding: utf-8 -*-
-
-"""Lalikan
-   =======
-   Backup scheduler for Disk ARchive (DAR)
-
-   Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-   Thank you for using free software!
-
-"""
-
+# Lalikan
+# =======
+# Backup scheduler for Disk ARchive (DAR)
+#
+# Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Thank you for using free software!
 
 import configparser
 import gettext
@@ -101,12 +96,12 @@ Thank you for using free software!"""
         return output.strip()
 
 
-    def get(self, section, option, allow_empty):
+    def get(self, section, option_name, allow_empty):
         """Get an application setting.
 
         Keyword arguments:
         section -- string that specifies the section to be queried
-        option -- string that specifies the option to be queried
+        option_name -- string that specifies the option to be queried
         allow_empty -- queried string may be empty or option may be
                        non-existant
 
@@ -115,9 +110,9 @@ Thank you for using free software!"""
 
         """
         if allow_empty:
-            value = self._settings.get(section, option, fallback='')
+            value = self._settings.get(section, option_name, fallback='')
         else:
-            value = self._settings.get(section, option)
+            value = self._settings.get(section, option_name)
             assert value != ''
 
         return value

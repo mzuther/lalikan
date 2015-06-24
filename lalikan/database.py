@@ -1,27 +1,23 @@
-# -*- coding: utf-8 -*-
-
-"""Lalikan
-   =======
-   Backup scheduler for Disk ARchive (DAR)
-
-   Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-   Thank you for using free software!
-
-"""
+# Lalikan
+# =======
+# Backup scheduler for Disk ARchive (DAR)
+#
+# Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Thank you for using free software!
 
 import datetime
 import gettext
@@ -39,11 +35,28 @@ _ = gettext.lgettext
 
 
 class BackupDatabase:
+    """Initialise database.
+
+        :param settings:
+            backup settings and application information
+        :type settings:
+            lalikan.settings
+
+        :param section:
+            section of backup settings to use (such as *Workstation* or
+            *Server*)
+        :type section:
+            String
+
+        :rtype:
+            None
+
+    """
     def __init__(self, settings, section):
         # Lalikan settings (such as backup directory)
         self._settings = settings
 
-        # backup section (such as "Workstation", "Server" etc.)
+        # backup section (such as "Workstation" or "Server")
         self._section = section
 
         # backup file name postfixes time for all backup levels
@@ -58,94 +71,182 @@ class BackupDatabase:
         }
 
 
-    # Query Lalikan settings for specified setting.
-    def get_setting(self, setting, allow_empty=False):
-        return self._settings.get(self._section, setting, allow_empty)
+    def get_option(self, option_name, allow_empty=False):
+        """
+        Query current backup settings for specified option.
+
+        :param option_name:
+            name of option to query
+        :type option_name:
+            String
+
+        :param allow_empty:
+            return value may be empty (or option may be non-existant)
+        :type allow_empty:
+            Boolean
+
+        :returns:
+            the option's value
+        :rtype:
+            String
+
+        """
+        return self._settings.get(self._section, option_name, allow_empty)
 
 
-    # Get file path to dar executable
     @property
     def path_to_dar(self):
-        return self.get_setting('path_to_dar')
+        """
+        Attribute: get file path to dar executable.
+
+        :returns:
+            file path to dar executable
+        :rtype:
+            String
+
+        """
+        return self.get_option('path_to_dar')
 
 
-    # Get backup directory
     @property
     @lalikan.utilities.Memoized
     def backup_directory(self):
-        return self.get_setting('backup_directory')
+        """
+        Attribute: get file path for backup directory.
+
+        :returns:
+            file path for backup directory
+        :rtype:
+            String
+
+        """
+        return self.get_option('backup_directory')
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_interval_full(self):
-        interval = self.get_setting('backup_interval_full')
+        """
+        Attribute: get interval for "full" backups.
+
+        :returns:
+            backup interval in days
+        :rtype:
+            float
+
+        """
+        interval = self.get_option('backup_interval_full')
         return float(interval)
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_interval_diff(self):
-        interval = self.get_setting('backup_interval_differential')
+        """
+        Attribute: get interval for "differential" backups.
+
+        :returns:
+            backup interval in days
+        :rtype:
+            float
+
+        """
+        interval = self.get_option('backup_interval_differential')
         return float(interval)
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_interval_incr(self):
-        interval = self.get_setting('backup_interval_incremental')
+        """
+        Attribute: get interval for "incremental" backups.
+
+        :returns:
+            backup interval in days
+        :rtype:
+            float
+
+        """
+        interval = self.get_option('backup_interval_incremental')
         return float(interval)
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_postfix_full(self):
+        """
+        Attribute: get file postfix for "full" backups.
+
+        :returns:
+            backup file postfix
+        :rtype:
+            String
+
+        """
         return self._backup_postfixes['full']
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_postfix_diff(self):
+        """
+        Attribute: get file postfix for "differential" backups.
+
+        :returns:
+            backup file postfix
+        :rtype:
+            String
+
+        """
         return self._backup_postfixes['differential']
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_postfix_incr(self):
+        """
+        Attribute: get file postfix for "incremental" backups.
+
+        :returns:
+            backup file postfix
+        :rtype:
+            String
+
+        """
         return self._backup_postfixes['incremental']
 
 
     @property
     def backup_options(self):
-        return self.get_setting('backup_options', True)
+        return self.get_option('backup_options', True)
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_start_time(self):
-        start_time = self.get_setting('backup_start_time')
+        start_time = self.get_option('backup_start_time')
         return datetime.datetime.strptime(start_time, self.date_format)
 
 
     @property
     @lalikan.utilities.Memoized
     def date_format(self):
-        return self.get_setting('date_format')
+        return self.get_option('date_format')
 
 
     @property
     def date_regex(self):
-        return self.get_setting('date_regex')
+        return self.get_option('date_regex')
 
 
     @property
     def pre_run_command(self):
-        return self.get_setting('command_pre_run', True)
+        return self.get_option('command_pre_run', True)
 
 
     @property
     def post_run_command(self):
-        return self.get_setting('command_post_run', True)
+        return self.get_option('command_post_run', True)
 
 
     def _check_backup_level(self, backup_level):
