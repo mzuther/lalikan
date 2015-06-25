@@ -52,6 +52,12 @@ clean:
 	rm -rf $(BUILDDIR)/*
 
 html:
+	@echo "Creating reStructuredText files..."
+	@echo
+	@sphinx-apidoc --force --separate ../ -o .
+	@echo
+	@echo "Building documentation..."
+	@echo
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."

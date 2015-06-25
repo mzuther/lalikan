@@ -1164,7 +1164,7 @@ full:  2012-01-20 20:00:00
         database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
 
-        if sys.platform == 'win32':
+        if sys.platform in ('win32', 'cygwin'):
             current_path = os.getcwd()
             os.chdir('C:\\Windows')
 

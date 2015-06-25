@@ -698,19 +698,38 @@ class BackupDatabase:
 
     # method can't be memoized, since results depend on current
     # working directory!
-    def sanitise_path(self, path):
-        # convert to absolute path
-        path = os.path.abspath(path)
+    def sanitise_path(self, path_name):
+        """
+        Return a normalised absolutised version of the specified path name.
+        On Windows, the path name will also be converted to something that
+        Cygwin understands (such as "/cygdrive/c/path/to/dar").
+
+        :param path_name:
+            path name
+        :type path_name:
+            String
+
+        :raises: :py:class:`ValueError`
+
+        :returns:
+            sanitised path name
+        :rtype:
+            String
+
+        """
+        # normalise and absolutise path name
+        path_name = os.path.abspath(path_name)
 
         # assert that path has a length
-        assert len(path) > 0
+        if not path_name:
+            raise ValueError('path name is empty')
 
         # Windows: DAR uses Cygwin internally
-        if sys.platform == 'win32':
+        if sys.platform in ('win32', 'cygwin'):
             # extract drive
-            (drive, tail) = os.path.splitdrive(path)
+            (drive, tail) = os.path.splitdrive(path_name)
 
-            # lower space drive letter
+            # extract drive letter and convert to lower space
             if drive:
                 drive = drive[0].lower()
 
@@ -719,12 +738,13 @@ class BackupDatabase:
                 tail = tail[len(os.sep):]
 
             # turn path to something like "/cygdrive/c/path/to/dar"
-            path = os.path.join(os.sep, 'cygdrive', drive, tail)
+            path_name = os.path.join(os.sep, 'cygdrive', drive, tail)
 
             # Cygwin uses "/" as path separator
-            path = path.replace(os.sep, '/')
+            path_name = path_name.replace(os.sep, '/')
 
-        return path
+        return path_name
+
 
     # ----- OLD CODE -----
 

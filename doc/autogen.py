@@ -57,18 +57,7 @@ class OnWriteHandler(pyinotify.ProcessEvent):
 
     def _run_command(self, cmd):
         # run command
-        proc = subprocess.Popen(cmd,
-                                shell=True,
-                                stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                universal_newlines=True)
-
-        # display output of "stdout" and "stderr" (if any)
-        for pipe_output in proc.communicate():
-            if pipe_output:
-                print(pipe_output.strip())
-                print()
+        proc = subprocess.call(cmd, shell=True)
 
 
 # define directories to be ignored
@@ -89,7 +78,7 @@ if __name__ == '__main__':
 
     # command to be run on payload.  "unbuffer" pretends a TTY, thus
     # keeping escape sequences
-    payload_command = 'unbuffer sphinx-apidoc --force --separate ../ -o . && echo && unbuffer make html'
+    payload_command = 'unbuffer make html'
 
     # create an instance of "pyinotify"
     watchmanager = pyinotify.WatchManager()
