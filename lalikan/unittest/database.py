@@ -104,35 +104,35 @@ class TestBackupDatabase(unittest.TestCase):
             self.settings, 'Test1')
 
         self.assertEqual(
-            database.path_to_dar,
+            database.dar_path,
             '/usr/local/bin/dar')
 
         self.assertEqual(
-            database.command_line_options,
+            database.dar_options,
             '--noconf --batch /etc/darrc --verbose=skipped')
 
         self.assertEqual(
-            database.backup_interval_full,
+            database.interval_full,
             9.5)
 
         self.assertEqual(
-            database.backup_interval_diff,
+            database.interval_diff,
             4.0)
 
         self.assertEqual(
-            database.backup_interval_incr,
+            database.interval_incr,
             1.0)
 
         self.assertEqual(
-            database.backup_postfix_full,
+            database.postfix_full,
             'full')
 
         self.assertEqual(
-            database.backup_postfix_diff,
+            database.postfix_diff,
             'diff')
 
         self.assertEqual(
-            database.backup_postfix_incr,
+            database.postfix_incr,
             'incr')
 
         self.assertEqual(
@@ -161,10 +161,10 @@ class TestBackupDatabase(unittest.TestCase):
         backup_schedule = database.calculate_backup_schedule(current_datetime)
 
         result = '\n'
-        for (backup_start_time, backup_level) in backup_schedule:
-            result += '{backup_level}:  {backup_start_time}\n'.format(
+        for (start_time, backup_level) in backup_schedule:
+            result += '{backup_level}:  {start_time}\n'.format(
                 backup_level=backup_level,
-                backup_start_time=backup_start_time.strftime(self.format))
+                start_time=start_time.strftime(self.format))
 
         self.assertEqual(result, expected_schedule)
 

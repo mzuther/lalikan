@@ -137,17 +137,17 @@ class Lalikan:
                     reference = debugger['references'][n]
 
                     if reference.endswith(
-                            self.db.backup_postfix_diff):
+                            self.db.postfix_diff):
                         reference = '    %s' % reference
                     elif reference.endswith(
-                            self.db.backup_postfix_incr):
+                            self.db.postfix_incr):
                         reference = '        %s' % reference
 
                     if directory.endswith(
-                            self.db.backup_postfix_full):
+                            self.db.postfix_full):
                         print('%s            %s' % (directory, reference))
                     elif directory.endswith(
-                            self.db.backup_postfix_diff):
+                            self.db.postfix_diff):
                         print('    %s        %s' % (directory, reference))
                     else:
                         print('        %s    %s' % (directory, reference))
@@ -207,13 +207,13 @@ class Lalikan:
 
             print('\nnext full in  %7.3f days  (%7.3f)' % \
                 (self.db.days_to_next_backup_due_date('full', debugger),
-                 self.db.backup_interval_full))
+                 self.db.interval_full))
             print('next diff in  %7.3f days  (%7.3f)' % \
                 (self.db.days_to_next_backup_due_date('differential', debugger),
-                 self.db.backup_interval_diff))
+                 self.db.interval_diff))
             print('next incr in  %7.3f days  (%7.3f)\n' % \
                 (self.db.days_to_next_backup_due_date('incremental', debugger),
-                 self.db.backup_interval_incr))
+                 self.db.interval_incr))
 
             print('backup type:  %s\n' % need_backup)
 
@@ -315,11 +315,11 @@ class Lalikan:
         self.db.check_backup_type(backup_type)
 
         if backup_type == 'full':
-            backup_postfix = self.db.backup_postfix_full
+            postfix = self.db.postfix_full
             reference_base = 'none'
             reference_option = ''
         elif backup_type == 'differential':
-            backup_postfix = self.db.backup_postfix_diff
+            postfix = self.db.postfix_diff
             reference_base = self.db.name_of_last_backup('full', debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
@@ -327,7 +327,7 @@ class Lalikan:
                 self.db.backup_directory, reference_base,
                 reference_catalog))
         elif backup_type == 'incremental':
-            backup_postfix = self.db.backup_postfix_incr
+            postfix = self.db.postfix_incr
             last_full = self.db.days_since_last_backup(
                 'full', debugger)
             last_differential = self.db.days_since_last_backup(
@@ -360,7 +360,7 @@ class Lalikan:
             now = datetime.datetime.now()
 
         timestamp = now.strftime(self.db.date_format)
-        base_name = '%s-%s' % (timestamp, backup_postfix)
+        base_name = '%s-%s' % (timestamp, postfix)
         base_directory = os.path.join(self.db.backup_directory, base_name)
         base_file = os.path.join(base_directory, base_name)
         catalog_name = '%s-%s' % (timestamp, "catalog")
@@ -375,10 +375,10 @@ class Lalikan:
             os.mkdir(base_directory)
 
             cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
-                  {'dar': self.db.path_to_dar,
+                  {'dar': self.db.dar_path,
                    'base': self.sanitise_path(base_file),
                    'reference': reference_option,
-                   'options': self.db.command_line_options}
+                   'options': self.db.dar_options}
 
             print('creating backup: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -401,10 +401,10 @@ class Lalikan:
 
             # isolate catalog
             cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
-                  {'dar': self.db.path_to_dar,
+                  {'dar': self.db.dar_path,
                    'base': self.sanitise_path(catalog_file),
                    'reference': self.sanitise_path(base_file),
-                   'options': self.db.command_line_options}
+                   'options': self.db.dar_options}
 
             print('isolating catalog: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -427,11 +427,11 @@ class Lalikan:
         self.db.check_backup_type(backup_type)
 
         if backup_type == 'full':
-            backup_postfix = self.db.backup_postfix_full
+            postfix = self.db.postfix_full
         elif backup_type == 'differential':
-            backup_postfix = self.db.backup_postfix_diff
+            postfix = self.db.postfix_diff
         elif backup_type == 'incremental':
-            backup_postfix = self.db.backup_postfix_incr
+            postfix = self.db.postfix_incr
 
         remove_prior = self.db.find_old_backups(backup_type, None, debugger)
         if len (remove_prior) < 2:
@@ -439,7 +439,7 @@ class Lalikan:
         else:
             # get date of previous backup of same type
             prior_date = remove_prior[-2]
-            prior_date = prior_date[:-len(backup_postfix) - 1]
+            prior_date = prior_date[:-len(postfix) - 1]
             prior_date = datetime.datetime.strptime(
                 prior_date, self.db.date_format)
 
@@ -456,20 +456,20 @@ class Lalikan:
                 self.__delete_backup(basename, debugger)
 
             # separate check for old differential backups
-            backup_postfix_diff = self.db.backup_postfix_diff
+            postfix_diff = self.db.postfix_diff
             remove_prior_diff = self.db.find_old_backups(
                 'differential', None, debugger)
 
             if (len (remove_prior) > 1) and (len(remove_prior_diff) > 0):
                 # get date of last full backup
                 last_full_date = remove_prior[-1]
-                last_full_date = last_full_date[:-len(backup_postfix) - 1]
+                last_full_date = last_full_date[:-len(postfix) - 1]
                 last_full_date = datetime.datetime.strptime(
                     last_full_date, self.db.date_format)
 
                 # get date of last differential backup
                 last_diff_date = remove_prior_diff[-1]
-                last_diff_date = last_diff_date[:-len(backup_postfix_diff) - 1]
+                last_diff_date = last_diff_date[:-len(postfix_diff) - 1]
                 last_diff_date = datetime.datetime.strptime(
                     last_diff_date, self.db.date_format)
 

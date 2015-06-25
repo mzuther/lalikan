@@ -64,7 +64,7 @@ class BackupDatabase:
         # full:          complete backup, contains everything
         # differential:  contains all changes since last full backup
         # incremental:   contains all changes since last backup
-        self._backup_postfixes = {
+        self._postfixes = {
             'full': 'full',
             'differential': 'diff',
             'incremental': 'incr'
@@ -95,7 +95,7 @@ class BackupDatabase:
 
 
     @property
-    def path_to_dar(self):
+    def dar_path(self):
         """
         Attribute: file path to dar executable.
 
@@ -105,7 +105,21 @@ class BackupDatabase:
             String
 
         """
-        return self.get_option('path_to_dar')
+        return self.get_option('dar_path')
+
+
+    @property
+    def dar_options(self):
+        """
+        Attribute: DAR command line options
+
+        :returns:
+            DAR command line options
+        :rtype:
+            String
+
+        """
+        return self.get_option('dar_options', True)
 
 
     @property
@@ -125,7 +139,7 @@ class BackupDatabase:
 
     @property
     @lalikan.utilities.Memoized
-    def backup_interval_full(self):
+    def interval_full(self):
         """
         Attribute: interval for "full" backups.
 
@@ -135,13 +149,13 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('backup_interval_full')
+        interval = self.get_option('interval_full')
         return float(interval)
 
 
     @property
     @lalikan.utilities.Memoized
-    def backup_interval_diff(self):
+    def interval_diff(self):
         """
         Attribute: interval for "differential" backups.
 
@@ -151,13 +165,13 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('backup_interval_differential')
+        interval = self.get_option('interval_differential')
         return float(interval)
 
 
     @property
     @lalikan.utilities.Memoized
-    def backup_interval_incr(self):
+    def interval_incr(self):
         """
         Attribute: interval for "incremental" backups.
 
@@ -167,13 +181,13 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('backup_interval_incremental')
+        interval = self.get_option('interval_incremental')
         return float(interval)
 
 
     @property
     @lalikan.utilities.Memoized
-    def backup_postfix_full(self):
+    def postfix_full(self):
         """
         Attribute: file postfix for "full" backups.
 
@@ -183,12 +197,12 @@ class BackupDatabase:
             String
 
         """
-        return self._backup_postfixes['full']
+        return self._postfixes['full']
 
 
     @property
     @lalikan.utilities.Memoized
-    def backup_postfix_diff(self):
+    def postfix_diff(self):
         """
         Attribute: file postfix for "differential" backups.
 
@@ -198,12 +212,12 @@ class BackupDatabase:
             String
 
         """
-        return self._backup_postfixes['differential']
+        return self._postfixes['differential']
 
 
     @property
     @lalikan.utilities.Memoized
-    def backup_postfix_incr(self):
+    def postfix_incr(self):
         """
         Attribute: file postfix for "incremental" backups.
 
@@ -213,26 +227,12 @@ class BackupDatabase:
             String
 
         """
-        return self._backup_postfixes['incremental']
-
-
-    @property
-    def command_line_options(self):
-        """
-        Attribute: DAR command line options
-
-        :returns:
-            DAR command line options
-        :rtype:
-            String
-
-        """
-        return self.get_option('command_line_options', True)
+        return self._postfixes['incremental']
 
 
     @property
     @lalikan.utilities.Memoized
-    def backup_start_time(self):
+    def start_time(self):
         """
         Attribute: start time of first backup (such as "2012-12-31_2100").
         This argument is parsed using :py:meth:`date_format`.
@@ -243,7 +243,7 @@ class BackupDatabase:
             :py:mod:`datetime.datetime`
 
         """
-        start_time = self.get_option('backup_start_time')
+        start_time = self.get_option('start_time')
         return datetime.datetime.strptime(start_time, self.date_format)
 
 
@@ -307,7 +307,7 @@ class BackupDatabase:
 
 
     def _check_backup_level(self, backup_level):
-        if backup_level not in self._backup_postfixes:
+        if backup_level not in self._postfixes:
             raise ValueError(
                 'wrong backup level given ("{0}")'.format(backup_level))
 
@@ -315,78 +315,78 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def calculate_backup_schedule(self, now):
         # initialise dict to hold scheduled backup times
-        backup_start_times = {}
-        for postfix in self._backup_postfixes.values():
-            backup_start_times[postfix] = []
+        start_times = {}
+        for postfix in self._postfixes.values():
+            start_times[postfix] = []
 
         # initialise variables to calculate all scheduled "full"
         # backups until given date
-        current_backup_start_time = self.backup_start_time
+        current_start_time = self.start_time
         backup_end_time = now
-        delta = datetime.timedelta(self.backup_interval_full)
+        delta = datetime.timedelta(self.interval_full)
 
         # calculate all scheduled "full" backups until given date
-        while current_backup_start_time <= backup_end_time:
-            backup_start_times['full'].append(current_backup_start_time)
-            current_backup_start_time += delta
+        while current_start_time <= backup_end_time:
+            start_times['full'].append(current_start_time)
+            current_start_time += delta
 
         # calculate upcoming "full" backup
-        backup_start_times['full'].append(current_backup_start_time)
+        start_times['full'].append(current_start_time)
 
         # found one or more scheduled "full" backups prior to given
         # date
-        if len(backup_start_times['full']) > 1:
+        if len(start_times['full']) > 1:
             # skip all scheduled backups except for last "full" backup
             # and upcoming "full" backup
-            backup_start_times['full'] = backup_start_times['full'][-2:]
+            start_times['full'] = start_times['full'][-2:]
 
             # copy limits for "differential" backups from "full"
             # backups (will be removed later on)
-            backup_start_times['diff'] = backup_start_times['full'][:]
+            start_times['diff'] = start_times['full'][:]
 
             # initialise variables to calculate all scheduled
             # "differential" backups until given date
-            current_backup_start_time = backup_start_times['diff'][0]
-            backup_end_time = backup_start_times['diff'][-1]
-            delta = datetime.timedelta(self.backup_interval_diff)
+            current_start_time = start_times['diff'][0]
+            backup_end_time = start_times['diff'][-1]
+            delta = datetime.timedelta(self.interval_diff)
 
             # move one backup cycle from last scheduled "full" backup
-            current_backup_start_time += delta
+            current_start_time += delta
 
             # calculate all scheduled "differential" backups between
             # last scheduled "full" backup and upcoming "full" backup
-            while current_backup_start_time < backup_end_time:
+            while current_start_time < backup_end_time:
                 # insert values in the list's middle
-                backup_start_times['diff'].insert(-1, current_backup_start_time)
-                current_backup_start_time += delta
+                start_times['diff'].insert(-1, current_start_time)
+                current_start_time += delta
 
             # calculate all scheduled "incremental" backups between
             # scheduled "full" and "differential" backups
-            for n in range(len(backup_start_times['diff'][:-1])):
+            for n in range(len(start_times['diff'][:-1])):
                 # initialise variables to calculate all scheduled
                 # "incremental" backups until given date
-                current_backup_start_time = backup_start_times['diff'][n]
-                backup_end_time = backup_start_times['diff'][n + 1]
-                delta = datetime.timedelta(self.backup_interval_incr)
+                current_start_time = start_times['diff'][n]
+                backup_end_time = start_times['diff'][n + 1]
+                delta = datetime.timedelta(self.interval_incr)
 
                 # move one backup cycle from last scheduled "full" or
                 # "differential" backup
-                current_backup_start_time += delta
+                current_start_time += delta
 
                 # calculate all scheduled "incremental" backups
                 # between scheduled "full" or "incremental" backups
-                while current_backup_start_time < backup_end_time:
-                    backup_start_times['incr'].append(current_backup_start_time)
-                    current_backup_start_time += delta
+                while current_start_time < backup_end_time:
+                    start_times['incr'].append(current_start_time)
+                    current_start_time += delta
 
             # remove "full" backup limits from "differential" backups
-            backup_start_times['diff'] = backup_start_times['diff'][1:-1]
+            start_times['diff'] = start_times['diff'][1:-1]
 
         # consolidate backup start times into a single list
         consolidation = []
-        for postfix in self._backup_postfixes.values():
-            for backup_start_time in backup_start_times[postfix]:
-                consolidation.append((backup_start_time, postfix))
+        for postfix in self._postfixes.values():
+            for start_time in start_times[postfix]:
+                consolidation.append((start_time, postfix))
 
         # sort consolidated backup start times by date
         backup_schedule = sorted(consolidation, key=lambda k: k[0])
@@ -520,9 +520,9 @@ class BackupDatabase:
 
     def find_old_backups(self, prior_date=None):
         # prepare regex to filter valid backups
-        regex_backup_postfixes = '|'.join(self._backup_postfixes.values())
+        regex_postfixes = '|'.join(self._postfixes.values())
         regex = re.compile('^({0})-({1})$'.format(self.date_regex,
-                                                  regex_backup_postfixes))
+                                                  regex_postfixes))
 
         # look for created backups (either real or simulated)
         found_backups = []
@@ -657,7 +657,7 @@ class BackupDatabase:
         # did we force creation of a backup?
         elif force_backup:
             # cannot force backup before schedule begins
-            if now < self.backup_start_time:
+            if now < self.start_time:
                 needed_backup = None
             else:
                 needed_backup = 'forced'
