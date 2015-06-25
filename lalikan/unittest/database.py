@@ -693,15 +693,15 @@ full:  2012-01-20 20:00:00
 
         def assertDaysOverdue(now, delta_full, delta_diff, delta_incr):
             self.assertEqual(
-                database.days_overdue('full', now),
+                database.days_overdue(now, 'full'),
                 delta_full / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue('differential', now),
+                database.days_overdue(now, 'differential'),
                 delta_diff / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue('incremental', now),
+                database.days_overdue(now, 'incremental'),
                 delta_incr / datetime.timedelta(days=1))
 
 
@@ -747,7 +747,7 @@ full:  2012-01-20 20:00:00
                 delta_diff=datetime.timedelta(minutes=-1),
                 delta_incr=datetime.timedelta(minutes=-1))
 
-            #normal backup
+            # normal backup
             self.assertEqual(
                 database.backup_needed(now, False),
                 None)
@@ -783,7 +783,7 @@ full:  2012-01-20 20:00:00
                 delta_diff=datetime.timedelta(minutes=0),
                 delta_incr=datetime.timedelta(minutes=0))
 
-            #normal backup
+            # normal backup
             self.assertEqual(
                 database.backup_needed(now, False),
                 'full')
@@ -821,7 +821,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=1,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 'full')
@@ -860,7 +860,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=3,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 None)
@@ -900,7 +900,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=4,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 None)
@@ -939,7 +939,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=4,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 'incremental')
@@ -979,7 +979,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=5,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 'differential')
@@ -1019,7 +1019,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=6,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 None)
@@ -1058,7 +1058,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=9,
                                                     hour=20, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 'differential')
@@ -1099,7 +1099,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=11,
                                                     hour=8, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 'full')
@@ -1146,7 +1146,7 @@ full:  2012-01-20 20:00:00
                 delta_incr=(now - datetime.datetime(year=2012, month=1, day=15,
                                                     hour=8, minute=0)))
 
-            #normal backup ("full" after scheduled "incr")
+            # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
                 'differential')

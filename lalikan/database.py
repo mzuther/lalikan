@@ -35,21 +35,21 @@ _ = gettext.lgettext
 
 
 class BackupDatabase:
-    """Initialise database.
+    """
+    Initialise database.
 
-        :param settings:
-            backup settings and application information
-        :type settings:
-            lalikan.settings
+    :param settings:
+        backup settings and application information
+    :type settings:
+        lalikan.settings
 
-        :param section:
-            section of backup settings to use (such as *Workstation* or
-            *Server*)
-        :type section:
-            String
+    :param section:
+        section of backup settings to use (such as *Workstation* or *Server*)
+    :type section:
+        String
 
-        :rtype:
-            None
+    :rtype:
+        None
 
     """
     def __init__(self, settings, section):
@@ -59,11 +59,14 @@ class BackupDatabase:
         # backup section (such as "Workstation" or "Server")
         self._section = section
 
-        # backup file name postfixes time for all backup levels
+        # valid backup levels
         #
         # full:          complete backup, contains everything
         # differential:  contains all changes since last full backup
         # incremental:   contains all changes since last backup
+        self._backup_levels = ('full', 'differential', 'incremental')
+
+        # backup file name postfixes time for all backup levels
         self._postfixes = {
             'full': 'full',
             'differential': 'diff',
@@ -307,6 +310,21 @@ class BackupDatabase:
 
 
     def _check_backup_level(self, backup_level):
+        """
+        Checks whether the specified backup level (such as "full")
+        actually exists.
+
+        :param backup_level:
+            backup level
+        :type backup_level:
+            String
+
+        :raises: :py:class:`ValueError`
+
+        :rtype:
+            None
+
+        """
         if backup_level not in self._postfixes:
             raise ValueError(
                 'wrong backup level given ("{0}")'.format(backup_level))
@@ -616,7 +634,7 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def days_overdue(self, backup_level, now):
+    def days_overdue(self, now, backup_level):
         last_scheduled = self.last_scheduled_backup(backup_level, now)
         last_existing = self.last_existing_backup(backup_level, now)
 
@@ -644,28 +662,38 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def backup_needed(self, now, force_backup):
-        # do we need to execute a "full" backup?
-        if self.days_overdue('full', now) >= 0.0:
-            needed_backup = 'full'
-        # do we need to execute a "differential" backup?
-        elif self.days_overdue('differential', now) >= 0.0:
-            needed_backup = 'differential'
-        # do we need to execute an "incremental" backup?
-        elif self.days_overdue('incremental', now) >= 0.0:
-            needed_backup = 'incremental'
-        # did we force creation of a backup?
-        elif force_backup:
-            # cannot force backup before schedule begins
-            if now < self.start_time:
-                needed_backup = None
-            else:
-                needed_backup = 'forced'
+    def backup_needed(self, point_in_time, force_backup):
+        """
+        Find out whether a backup is necessary for a given point in time.
+
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :param force_backup:
+            **True** forces a backup
+        :type force_backup:
+            Boolean
+
+        :returns:
+            backup level when backup is needed, **None** otherwise
+        :rtype:
+            String or None
+
+        """
+        # check necessity of a backup for all backup levels
+        for backup_level in self._backup_levels:
+            # a backup of this level is necessary
+            if self.days_overdue(point_in_time, backup_level) >= 0.0:
+                return backup_level
+
+        # force backup, but only after schedule begins
+        if force_backup and point_in_time >= self.start_time:
+            return 'forced'
         # no backup necessary
         else:
-            needed_backup = None
-
-        return needed_backup
+            return None
 
 
     # method can't be memoized, since results depend on current

@@ -34,11 +34,12 @@ _ = gettext.lgettext
 # @Memoized decorator; please note that it ignores **kwargs!  Adapted
 # from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 class Memoized(object):
-   '''Decorator. Caches a function's return value each time it is called.
-      If called later with the same arguments, the cached value is
-      returned rather than computing the result again.
+   """
+   Decorator. Caches a function's return value each time it is called.
+   If called later with the same arguments, the cached value is
+   returned rather than computing the result again.
 
-   '''
+   """
    def __init__(self, func):
       self.func = func
       self.clear_cache()
@@ -67,9 +68,10 @@ class Memoized(object):
 
 
    def __get__(self, obj, objtype):
-      '''Support instance methods.
+      """
+      Support instance methods.
 
-      '''
+      """
       return functools.partial(self.__call__, obj)
 
 

@@ -10,12 +10,13 @@ class OnWriteHandler(pyinotify.ProcessEvent):
         # initialise payload command
         self.payload_command = payload_command
 
-        print()
-        print('==> initial command')
-        print()
-
         # run intial command once on startup
-        self._run_command(init_command)
+        if init_command:
+            print()
+            print('==> initial command')
+            print()
+
+            self._run_command(init_command)
 
         print()
         print('==> initial run')
@@ -84,11 +85,11 @@ if __name__ == '__main__':
 
     # command to be run initially.  "unbuffer" pretends a TTY, thus
     # keeping escape sequences
-    init_command = 'unbuffer sphinx-apidoc --force --separate ../ -o .'
+    init_command = ''
 
     # command to be run on payload.  "unbuffer" pretends a TTY, thus
     # keeping escape sequences
-    payload_command = 'unbuffer make html'
+    payload_command = 'unbuffer sphinx-apidoc --force --separate ../ -o . && echo && unbuffer make html'
 
     # create an instance of "pyinotify"
     watchmanager = pyinotify.WatchManager()
