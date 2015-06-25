@@ -378,7 +378,7 @@ class Lalikan:
                   {'dar': self.db.path_to_dar,
                    'base': self.sanitise_path(base_file),
                    'reference': reference_option,
-                   'options': self.db.backup_options}
+                   'options': self.db.command_line_options}
 
             print('creating backup: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -404,7 +404,7 @@ class Lalikan:
                   {'dar': self.db.path_to_dar,
                    'base': self.sanitise_path(catalog_file),
                    'reference': self.sanitise_path(base_file),
-                   'options': self.db.backup_options}
+                   'options': self.db.command_line_options}
 
             print('isolating catalog: %s\n' % cmd)
             proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)

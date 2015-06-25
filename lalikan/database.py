@@ -97,7 +97,7 @@ class BackupDatabase:
     @property
     def path_to_dar(self):
         """
-        Attribute: get file path to dar executable.
+        Attribute: file path to dar executable.
 
         :returns:
             file path to dar executable
@@ -112,7 +112,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_directory(self):
         """
-        Attribute: get file path for backup directory.
+        Attribute: file path for backup directory.
 
         :returns:
             file path for backup directory
@@ -127,7 +127,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_interval_full(self):
         """
-        Attribute: get interval for "full" backups.
+        Attribute: interval for "full" backups.
 
         :returns:
             backup interval in days
@@ -143,7 +143,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_interval_diff(self):
         """
-        Attribute: get interval for "differential" backups.
+        Attribute: interval for "differential" backups.
 
         :returns:
             backup interval in days
@@ -159,7 +159,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_interval_incr(self):
         """
-        Attribute: get interval for "incremental" backups.
+        Attribute: interval for "incremental" backups.
 
         :returns:
             backup interval in days
@@ -175,7 +175,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_postfix_full(self):
         """
-        Attribute: get file postfix for "full" backups.
+        Attribute: file postfix for "full" backups.
 
         :returns:
             backup file postfix
@@ -190,7 +190,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_postfix_diff(self):
         """
-        Attribute: get file postfix for "differential" backups.
+        Attribute: file postfix for "differential" backups.
 
         :returns:
             backup file postfix
@@ -205,7 +205,7 @@ class BackupDatabase:
     @lalikan.utilities.Memoized
     def backup_postfix_incr(self):
         """
-        Attribute: get file postfix for "incremental" backups.
+        Attribute: file postfix for "incremental" backups.
 
         :returns:
             backup file postfix
@@ -217,35 +217,92 @@ class BackupDatabase:
 
 
     @property
-    def backup_options(self):
-        return self.get_option('backup_options', True)
+    def command_line_options(self):
+        """
+        Attribute: DAR command line options
+
+        :returns:
+            DAR command line options
+        :rtype:
+            String
+
+        """
+        return self.get_option('command_line_options', True)
 
 
     @property
     @lalikan.utilities.Memoized
     def backup_start_time(self):
+        """
+        Attribute: start time of first backup (such as "2012-12-31_2100").
+        This argument is parsed using :py:meth:`date_format`.
+
+        :returns:
+            start time of first backup
+        :rtype:
+            :py:mod:`datetime.datetime`
+
+        """
         start_time = self.get_option('backup_start_time')
         return datetime.datetime.strptime(start_time, self.date_format)
 
 
     @property
-    @lalikan.utilities.Memoized
     def date_format(self):
-        return self.get_option('date_format')
+        """
+        Attribute: date format string.  Please see
+        :py:meth:`datetime.datetime.strftime` for more information.
+
+        :returns:
+            date format string
+        :rtype:
+            String
+
+        """
+        return '%Y-%m-%d_%H%M'
 
 
     @property
     def date_regex(self):
-        return self.get_option('date_regex')
+        """
+        Attribute: regular expression for matching backup dates.
+
+        :returns:
+            regular expression
+        :rtype:
+            String
+
+        """
+        return '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}'
 
 
     @property
     def pre_run_command(self):
+        """
+        Attribute: command that is executed in the shell before the backup
+        is started.
+
+        :returns:
+            shell command
+        :rtype:
+            String
+
+        """
         return self.get_option('command_pre_run', True)
 
 
     @property
     def post_run_command(self):
+        """
+        Attribute: command that is executed in the shell after the backup
+        hss finished.
+
+        :returns:
+            shell command
+        :rtype:
+            String
+
+        """
         return self.get_option('command_post_run', True)
 
 
