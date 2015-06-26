@@ -126,7 +126,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def backup_directory(self):
         """
         Attribute: file path for backup directory.
@@ -141,7 +140,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def interval_full(self):
         """
         Attribute: interval for "full" backups.
@@ -157,7 +155,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def interval_diff(self):
         """
         Attribute: interval for "differential" backups.
@@ -173,7 +170,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def interval_incr(self):
         """
         Attribute: interval for "incremental" backups.
@@ -189,7 +185,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def postfix_full(self):
         """
         Attribute: file postfix for "full" backups.
@@ -204,7 +199,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def postfix_diff(self):
         """
         Attribute: file postfix for "differential" backups.
@@ -219,7 +213,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def postfix_incr(self):
         """
         Attribute: file postfix for "incremental" backups.
@@ -409,47 +402,56 @@ class BackupDatabase:
         # sort consolidated backup start times by date
         backup_schedule = sorted(consolidation, key=lambda k: k[0])
 
-        # make consolidated result read-only
-        backup_schedule = tuple(backup_schedule)
-
         # return consolidated backup start times
         return backup_schedule
 
 
     @lalikan.utilities.Memoized
-    def __last_scheduled_backup(self, backup_level, now):
-        # find scheduled backups
-        scheduled_backups = self.calculate_backup_schedule(now)
+    def __current_scheduled_backup(self, point_in_time, backup_level):
+        """
+        Find current scheduled backup for a given backup level.
 
-        # no backups were scheduled
-        if not scheduled_backups:
-            return None
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :param backup_level:
+            backup level
+        :type backup_level:
+            String
+
+        :returns:
+            time and postfix of current scheduled backup
+        :rtype:
+            tuple containing datetime.datetime and String (or None)
+
+        """
+        # find scheduled backups
+        schedule = self.calculate_backup_schedule(point_in_time)
+
+        # reverse order of scheduled backups
+        reversed_schedule = reversed(schedule)
 
         # only "full" backups count as "full" backup
         if backup_level == 'full':
-            accepted_levels = ('full', )
+            accepted_postfixes = ('full', )
         # both "full" and "differential" backups count as
         # "differential" backup
         elif backup_level == 'differential':
-            accepted_levels = ('full', 'diff')
+            accepted_postfixes = ('full', 'diff')
         # all backup levels count as "incremental" backup
         elif backup_level == 'incremental':
-            accepted_levels = ('full', 'diff', 'incr')
+            accepted_postfixes = ('full', 'diff', 'incr')
 
-        # backwards loop over scheduled backups
-        for n in range(len(scheduled_backups), 0, -1):
-            # sequences start at index zero
-            index = n - 1
-
-            # we found the last scheduled backup when the current one
-            # matches any of the accepted levels ...
-            if scheduled_backups[index][1] in accepted_levels:
-                last_scheduled = scheduled_backups[index][0]
-                backup_level = scheduled_backups[index][1]
-
+        # loop over reversed schedule
+        for scheduled_backup in reversed_schedule:
+            # we found the current scheduled backup when it matches
+            # any of the accepted levels ...
+            if scheduled_backup[1] in accepted_postfixes:
                 # ... and it doesn't lie in the future
-                if last_scheduled <= now:
-                    return (last_scheduled, backup_level)
+                if scheduled_backup[0] <= point_in_time:
+                    return scheduled_backup
 
         # no matching scheduled backup found
         return None
@@ -472,30 +474,30 @@ class BackupDatabase:
 
         if backup_level == 'full':
             # see whether we need a "full" backup
-            full = self.__last_scheduled_backup('full', now)
+            full = self.__current_scheduled_backup(now, 'full')
             return full
         elif backup_level == 'differential':
             # do we need a "full" backup?
-            full = self.__last_scheduled_backup('full', now)
+            full = self.__current_scheduled_backup(now, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
             # otherwise, see whether we need a "differential" backup
-            diff = self.__last_scheduled_backup('differential', now)
+            diff = self.__current_scheduled_backup(now, 'differential')
             return diff
         elif backup_level == 'incremental':
             # do we need a "full" backup?
-            full = self.__last_scheduled_backup('full', now)
+            full = self.__current_scheduled_backup(now, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
             # do we need a "differential" backup?
-            diff = self.__last_scheduled_backup('differential', now)
+            diff = self.__current_scheduled_backup(now, 'differential')
             if (diff is not None) and (last_existing < diff[0]):
                 return diff
 
             # otherwise, see whether we need an "incremental" backup
-            incr = self.__last_scheduled_backup('incremental', now)
+            incr = self.__current_scheduled_backup(now, 'incremental')
             return incr
 
 
@@ -512,20 +514,20 @@ class BackupDatabase:
 
         # only "full" backups count as "full" backup
         if backup_level == 'full':
-            accepted_levels = ('full', )
+            accepted_postfixes = ('full', )
         # both "full" and "differential" backups count as
         # "differential" backup
         elif backup_level == 'differential':
-            accepted_levels = ('full', 'diff')
+            accepted_postfixes = ('full', 'diff')
         # all backup levels count as "incremental" backup
         elif backup_level == 'incremental':
-            accepted_levels = ('full', 'diff', 'incr')
+            accepted_postfixes = ('full', 'diff', 'incr')
 
         # loop over scheduled backups
         for index in range(len(scheduled_backups)):
             # we found the next scheduled backup when the current one
             # matches any of the accepted levels ...
-            if scheduled_backups[index][1] in accepted_levels:
+            if scheduled_backups[index][1] in accepted_postfixes:
                 next_backup = scheduled_backups[index][0]
                 backup_level = scheduled_backups[index][1]
 
@@ -607,14 +609,14 @@ class BackupDatabase:
 
         # only "full" backups count as "full" backup
         if backup_level == 'full':
-            accepted_levels = ('full', )
+            accepted_postfixes = ('full', )
         # both "full" and "differential" backups count as
         # "differential" backup
         elif backup_level == 'differential':
-            accepted_levels = ('full', 'diff')
+            accepted_postfixes = ('full', 'diff')
         # all backup levels count as "incremental" backup
         elif backup_level == 'incremental':
-            accepted_levels = ('full', 'diff', 'incr')
+            accepted_postfixes = ('full', 'diff', 'incr')
 
         # backwards loop over found backups
         for n in range(len(found_backups), 0, -1):
@@ -623,7 +625,7 @@ class BackupDatabase:
 
             # we found the last backup when the current one matches
             # any of the accepted levels
-            if found_backups[index][1] in accepted_levels:
+            if found_backups[index][1] in accepted_postfixes:
                 last_existing = datetime.datetime.strptime(
                     found_backups[index][0], self.date_format)
                 backup_level = found_backups[index][1]
