@@ -319,87 +319,118 @@ class BackupDatabase:
                 'wrong backup level given ("{0}")'.format(backup_level))
 
 
-    @lalikan.utilities.Memoized
-    def calculate_backup_schedule(self, point_in_time):
-        # initialise dict to hold scheduled backup times
-        start_times = {}
-        for postfix in self._postfixes:
-            start_times[postfix] = []
+    def _fill_schedule(self, schedule, backup_level, interval):
+        """
+        Fill schedule with backups of a certain backup level using a given
+        interval.
 
-        # initialise variables to calculate all scheduled "full"
-        # backups until given date
-        current_start_time = self.start_time
-        backup_end_time = point_in_time
-        delta = datetime.timedelta(self.interval_full)
+        :param schedule:
+            existing schedule containing times and corresponding
+            backup levels
+        :type schedule:
+            list of tuple(:py:mod:`datetime.datetime`, String)
 
-        # calculate all scheduled "full" backups until given date
-        while current_start_time <= backup_end_time:
-            start_times['full'].append(current_start_time)
-            current_start_time += delta
+        :param backup_level:
+            backup level
+        :type backup_level:
+            String
 
-        # calculate upcoming "full" backup
-        start_times['full'].append(current_start_time)
+        :param interval:
+            backup interval
+        :type interval:
+            :py:mod:`datetime.timedelta`
 
-        # found one or more scheduled "full" backups prior to given
-        # date
-        if len(start_times['full']) > 1:
-            # skip all scheduled backups except for last "full" backup
-            # and upcoming "full" backup
-            start_times['full'] = start_times['full'][-2:]
+        :returns:
+            updated schedule containing times and corresponding backup
+            levels
+        :rtype:
+            list of tuple(:py:mod:`datetime.datetime`, String)
 
-            # copy limits for "diff" backups from "full"
-            # backups (will be removed later on)
-            start_times['diff'] = start_times['full'][:]
+        """
+        # temporary storage for newly scheduled backups
+        temp_schedule = []
 
-            # initialise variables to calculate all scheduled
-            # "diff" backups until given date
-            current_start_time = start_times['diff'][0]
-            backup_end_time = start_times['diff'][-1]
-            delta = datetime.timedelta(self.interval_diff)
+        # loop over existing schedule, ignoring the last entry
+        for n in range(len(schedule) - 1):
+            # start with current scheduled backup
+            start_time = schedule[n][0]
 
-            # move one backup cycle from last scheduled "full" backup
-            current_start_time += delta
+            # end with next scheduled backup
+            end_time = schedule[n + 1][0]
 
-            # calculate all scheduled "diff" backups between last
-            # scheduled "full" backup and upcoming "full" backup
-            while current_start_time < backup_end_time:
-                # insert values in the list's middle
-                start_times['diff'].insert(-1, current_start_time)
-                current_start_time += delta
+            # add one interval so that existing and new backup do not
+            # overlap
+            start_time += interval
 
-            # calculate all scheduled "incr" backups between scheduled
-            # "full" and "diff" backups
-            for n in range(len(start_times['diff'][:-1])):
-                # initialise variables to calculate all scheduled
-                # "incr" backups until given date
-                current_start_time = start_times['diff'][n]
-                backup_end_time = start_times['diff'][n + 1]
-                delta = datetime.timedelta(self.interval_incr)
+            # calculate backup start times
+            while start_time < end_time:
+                # store new backup
+                new_backup = (start_time, backup_level)
+                temp_schedule.append(new_backup)
 
-                # move one backup cycle from last scheduled "full" or
-                # "diff" backup
-                current_start_time += delta
+                # move on
+                start_time += interval
 
-                # calculate all scheduled "incr" backups between
-                # scheduled "full" or "incr" backups
-                while current_start_time < backup_end_time:
-                    start_times['incr'].append(current_start_time)
-                    current_start_time += delta
-
-            # remove "full" backup limits from "diff" backups
-            start_times['diff'] = start_times['diff'][1:-1]
-
-        # consolidate backup start times into a single list
-        consolidation = []
-        for postfix in self._postfixes:
-            for start_time in start_times[postfix]:
-                consolidation.append((start_time, postfix))
+        # consolidate backup start times
+        schedule.extend(temp_schedule)
 
         # sort consolidated backup start times by date
-        backup_schedule = sorted(consolidation, key=lambda k: k[0])
+        schedule = sorted(schedule, key=lambda k: k[0])
 
-        # return consolidated backup start times
-        return backup_schedule
+        # return updated schedule
+        return schedule
+
+
+    @lalikan.utilities.Memoized
+    def calculate_backup_schedule(self, point_in_time):
+        """
+        Calculate backup schedule, starting from the "full" backup prior to
+        the given point in time and ending with the next one.
+
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :returns:
+            backup schedule containing times and corresponding backup
+            levels
+        :rtype:
+            list of tuple(:py:mod:`datetime.datetime`, String)
+
+        """
+        # prepare backup intervals
+        delta_full = datetime.timedelta(self.interval_full)
+        delta_diff = datetime.timedelta(self.interval_diff)
+        delta_incr = datetime.timedelta(self.interval_incr)
+
+        # calculate first "full" backup after the given date
+        current_start_time = self.start_time
+        while current_start_time <= point_in_time:
+            current_start_time += delta_full
+
+        # store upcoming "full" backup
+        new_backup = (current_start_time, 'full')
+        schedule = [new_backup]
+
+        # calculate previous "full" backup
+        current_start_time -= delta_full
+
+        # store previous "full" backup (if valid)
+        if current_start_time >= self.start_time:
+            new_backup = (current_start_time, 'full')
+            schedule.insert(0, new_backup)
+
+        # found "full" backup prior to given date
+        if len(schedule) > 1:
+            # fill schedule with "diff" backups
+            schedule = self._fill_schedule(schedule, 'diff', delta_diff)
+
+            # fill schedule with "incr" backups
+            schedule = self._fill_schedule(schedule, 'incr', delta_incr)
+
+        # return schedule
+        return schedule
 
 
     @lalikan.utilities.Memoized
