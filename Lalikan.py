@@ -209,18 +209,18 @@ class Lalikan:
                 (self.db.days_to_next_backup_due_date('full', debugger),
                  self.db.interval_full))
             print('next diff in  %7.3f days  (%7.3f)' % \
-                (self.db.days_to_next_backup_due_date('differential', debugger),
+                (self.db.days_to_next_backup_due_date('diff', debugger),
                  self.db.interval_diff))
             print('next incr in  %7.3f days  (%7.3f)\n' % \
-                (self.db.days_to_next_backup_due_date('incremental', debugger),
+                (self.db.days_to_next_backup_due_date('incr', debugger),
                  self.db.interval_incr))
 
             print('backup type:  %s\n' % need_backup)
 
             if need_backup == 'none':
                 return False
-            elif need_backup == 'incremental (forced)':
-                need_backup = 'incremental'
+            elif need_backup == 'incr (forced)':
+                need_backup = 'incr'
 
             if not debugger:
                 self.__notify_user('Starting %s backup...' % need_backup,
@@ -318,7 +318,7 @@ class Lalikan:
             postfix = self.db.postfix_full
             reference_base = 'none'
             reference_option = ''
-        elif backup_type == 'differential':
+        elif backup_type == 'diff':
             postfix = self.db.postfix_diff
             reference_base = self.db.name_of_last_backup('full', debugger)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
@@ -326,25 +326,25 @@ class Lalikan:
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
                 self.db.backup_directory, reference_base,
                 reference_catalog))
-        elif backup_type == 'incremental':
+        elif backup_type == 'incr':
             postfix = self.db.postfix_incr
             last_full = self.db.days_since_last_backup(
                 'full', debugger)
-            last_differential = self.db.days_since_last_backup(
-                'differential', debugger)
-            last_incremental = self.db.days_since_last_backup(
-                'incremental', debugger)
+            last_diff = self.db.days_since_last_backup(
+                'diff', debugger)
+            last_incr = self.db.days_since_last_backup(
+                'incr', debugger)
 
             newest_backup = 'full'
             newest_age = last_full
 
-            if (last_differential >= 0) and (last_differential < newest_age):
-                newest_backup = 'differential'
-                newest_age = last_differential
+            if (last_diff >= 0) and (last_diff < newest_age):
+                newest_backup = 'diff'
+                newest_age = last_diff
 
-            if (last_incremental >= 0) and (last_incremental < newest_age):
-                newest_backup = 'incremental'
-                newest_age = last_incremental
+            if (last_incr >= 0) and (last_incr < newest_age):
+                newest_backup = 'incr'
+                newest_age = last_incr
 
             reference_base = self.db.name_of_last_backup(
                 newest_backup, debugger)
@@ -428,9 +428,9 @@ class Lalikan:
 
         if backup_type == 'full':
             postfix = self.db.postfix_full
-        elif backup_type == 'differential':
+        elif backup_type == 'diff':
             postfix = self.db.postfix_diff
-        elif backup_type == 'incremental':
+        elif backup_type == 'incr':
             postfix = self.db.postfix_incr
 
         remove_prior = self.db.find_old_backups(backup_type, None, debugger)
@@ -449,16 +449,16 @@ class Lalikan:
                 prior_date)
 
             for basename in self.db.find_old_backups(
-                    'incremental', prior_date, debugger):
+                    'incr', prior_date, debugger):
                 self.__delete_backup(basename, debugger)
             for basename in self.db.find_old_backups(
-                    'differential', prior_date, debugger):
+                    'diff', prior_date, debugger):
                 self.__delete_backup(basename, debugger)
 
-            # separate check for old differential backups
+            # separate check for old "diff" backups
             postfix_diff = self.db.postfix_diff
             remove_prior_diff = self.db.find_old_backups(
-                'differential', None, debugger)
+                'diff', None, debugger)
 
             if (len (remove_prior) > 1) and (len(remove_prior_diff) > 0):
                 # get date of last full backup
@@ -467,7 +467,7 @@ class Lalikan:
                 last_full_date = datetime.datetime.strptime(
                     last_full_date, self.db.date_format)
 
-                # get date of last differential backup
+                # get date of last "diff" backup
                 last_diff_date = remove_prior_diff[-1]
                 last_diff_date = last_diff_date[:-len(postfix_diff) - 1]
                 last_diff_date = datetime.datetime.strptime(
@@ -477,17 +477,17 @@ class Lalikan:
                     last_diff_date)
 
                 for basename in self.db.find_old_backups(
-                        'incremental', last_diff_date, debugger):
+                        'incr', last_diff_date, debugger):
                     self.__delete_backup(basename, debugger)
 
-        elif backup_type == 'differential':
+        elif backup_type == 'diff':
             print('\ndiff: removing incr prior to last diff (%s)\n' % \
                 prior_date)
 
             for basename in self.db.find_old_backups(
-                    'incremental', prior_date, debugger):
+                    'incr', prior_date, debugger):
                 self.__delete_backup(basename, debugger)
-        elif backup_type == 'incremental':
+        elif backup_type == 'incr':
             return
 
         self.__remove_empty_directories__()

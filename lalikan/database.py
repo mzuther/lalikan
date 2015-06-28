@@ -61,17 +61,13 @@ class BackupDatabase:
 
         # valid backup levels
         #
-        # full:          complete backup, contains everything
-        # differential:  contains all changes since last full backup
-        # incremental:   contains all changes since last backup
-        self._backup_levels = ('full', 'differential', 'incremental')
+        # full: complete backup, contains everything
+        # diff: differential, contains all changes since last full backup
+        # incr: incremental, contains all changes since last backup
+        self._backup_levels = ('full', 'diff', 'incr')
 
         # backup file name postfixes time for all backup levels
-        self._postfixes = {
-            'full': 'full',
-            'differential': 'diff',
-            'incremental': 'incr'
-        }
+        self._postfixes = ('full', 'diff', 'incr')
 
 
     def get_option(self, option_name, allow_empty=False):
@@ -157,7 +153,7 @@ class BackupDatabase:
     @property
     def interval_diff(self):
         """
-        Attribute: interval for "differential" backups.
+        Attribute: interval for "diff" backups.
 
         :returns:
             backup interval in days
@@ -165,14 +161,14 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('interval_differential')
+        interval = self.get_option('interval_diff')
         return float(interval)
 
 
     @property
     def interval_incr(self):
         """
-        Attribute: interval for "incremental" backups.
+        Attribute: interval for "incr" backups.
 
         :returns:
             backup interval in days
@@ -180,7 +176,7 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('interval_incremental')
+        interval = self.get_option('interval_incr')
         return float(interval)
 
 
@@ -195,13 +191,13 @@ class BackupDatabase:
             String
 
         """
-        return self._postfixes['full']
+        return 'full'
 
 
     @property
     def postfix_diff(self):
         """
-        Attribute: file postfix for "differential" backups.
+        Attribute: file postfix for "diff" backups.
 
         :returns:
             backup file postfix
@@ -209,13 +205,13 @@ class BackupDatabase:
             String
 
         """
-        return self._postfixes['differential']
+        return 'diff'
 
 
     @property
     def postfix_incr(self):
         """
-        Attribute: file postfix for "incremental" backups.
+        Attribute: file postfix for "incr" backups.
 
         :returns:
             backup file postfix
@@ -223,7 +219,7 @@ class BackupDatabase:
             String
 
         """
-        return self._postfixes['incremental']
+        return 'incr'
 
 
     @property
@@ -318,7 +314,7 @@ class BackupDatabase:
             None
 
         """
-        if backup_level not in self._postfixes:
+        if backup_level not in self._backup_levels:
             raise ValueError(
                 'wrong backup level given ("{0}")'.format(backup_level))
 
@@ -327,7 +323,7 @@ class BackupDatabase:
     def calculate_backup_schedule(self, point_in_time):
         # initialise dict to hold scheduled backup times
         start_times = {}
-        for postfix in self._postfixes.values():
+        for postfix in self._postfixes:
             start_times[postfix] = []
 
         # initialise variables to calculate all scheduled "full"
@@ -351,12 +347,12 @@ class BackupDatabase:
             # and upcoming "full" backup
             start_times['full'] = start_times['full'][-2:]
 
-            # copy limits for "differential" backups from "full"
+            # copy limits for "diff" backups from "full"
             # backups (will be removed later on)
             start_times['diff'] = start_times['full'][:]
 
             # initialise variables to calculate all scheduled
-            # "differential" backups until given date
+            # "diff" backups until given date
             current_start_time = start_times['diff'][0]
             backup_end_time = start_times['diff'][-1]
             delta = datetime.timedelta(self.interval_diff)
@@ -364,38 +360,38 @@ class BackupDatabase:
             # move one backup cycle from last scheduled "full" backup
             current_start_time += delta
 
-            # calculate all scheduled "differential" backups between
-            # last scheduled "full" backup and upcoming "full" backup
+            # calculate all scheduled "diff" backups between last
+            # scheduled "full" backup and upcoming "full" backup
             while current_start_time < backup_end_time:
                 # insert values in the list's middle
                 start_times['diff'].insert(-1, current_start_time)
                 current_start_time += delta
 
-            # calculate all scheduled "incremental" backups between
-            # scheduled "full" and "differential" backups
+            # calculate all scheduled "incr" backups between scheduled
+            # "full" and "diff" backups
             for n in range(len(start_times['diff'][:-1])):
                 # initialise variables to calculate all scheduled
-                # "incremental" backups until given date
+                # "incr" backups until given date
                 current_start_time = start_times['diff'][n]
                 backup_end_time = start_times['diff'][n + 1]
                 delta = datetime.timedelta(self.interval_incr)
 
                 # move one backup cycle from last scheduled "full" or
-                # "differential" backup
+                # "diff" backup
                 current_start_time += delta
 
-                # calculate all scheduled "incremental" backups
-                # between scheduled "full" or "incremental" backups
+                # calculate all scheduled "incr" backups between
+                # scheduled "full" or "incr" backups
                 while current_start_time < backup_end_time:
                     start_times['incr'].append(current_start_time)
                     current_start_time += delta
 
-            # remove "full" backup limits from "differential" backups
+            # remove "full" backup limits from "diff" backups
             start_times['diff'] = start_times['diff'][1:-1]
 
         # consolidate backup start times into a single list
         consolidation = []
-        for postfix in self._postfixes.values():
+        for postfix in self._postfixes:
             for start_time in start_times[postfix]:
                 consolidation.append((start_time, postfix))
 
@@ -436,12 +432,12 @@ class BackupDatabase:
         # only "full" backups count as "full" backup
         if backup_level == 'full':
             accepted_postfixes = ('full', )
-        # both "full" and "differential" backups count as
-        # "differential" backup
-        elif backup_level == 'differential':
+        # both "full" and "diff" backups count as
+        # "diff" backup
+        elif backup_level == 'diff':
             accepted_postfixes = ('full', 'diff')
-        # all backup levels count as "incremental" backup
-        elif backup_level == 'incremental':
+        # all backup levels count as "incr" backup
+        elif backup_level == 'incr':
             accepted_postfixes = ('full', 'diff', 'incr')
 
         # loop over reversed schedule
@@ -477,32 +473,32 @@ class BackupDatabase:
             # see whether we need a "full" backup
             full = self.__current_scheduled_backup(point_in_time, 'full')
             return full
-        elif backup_level == 'differential':
+        elif backup_level == 'diff':
             # do we need a "full" backup?
             full = self.__current_scheduled_backup(point_in_time, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
-            # otherwise, see whether we need a "differential" backup
+            # otherwise, see whether we need a "diff" backup
             diff = self.__current_scheduled_backup(
-                point_in_time, 'differential')
+                point_in_time, 'diff')
 
             return diff
-        elif backup_level == 'incremental':
+        elif backup_level == 'incr':
             # do we need a "full" backup?
             full = self.__current_scheduled_backup(point_in_time, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
-            # do we need a "differential" backup?
+            # do we need a "diff" backup?
             diff = self.__current_scheduled_backup(
-                point_in_time, 'differential')
+                point_in_time, 'diff')
 
             if (diff is not None) and (last_existing < diff[0]):
                 return diff
 
-            # otherwise, see whether we need an "incremental" backup
-            incr = self.__current_scheduled_backup(point_in_time, 'incremental')
+            # otherwise, see whether we need an "incr" backup
+            incr = self.__current_scheduled_backup(point_in_time, 'incr')
             return incr
 
 
@@ -521,12 +517,11 @@ class BackupDatabase:
         # only "full" backups count as "full" backup
         if backup_level == 'full':
             accepted_postfixes = ('full', )
-        # both "full" and "differential" backups count as
-        # "differential" backup
-        elif backup_level == 'differential':
+        # both "full" and "diff" backups count as "diff" backup
+        elif backup_level == 'diff':
             accepted_postfixes = ('full', 'diff')
-        # all backup levels count as "incremental" backup
-        elif backup_level == 'incremental':
+        # all backup levels count as "incr" backup
+        elif backup_level == 'incr':
             accepted_postfixes = ('full', 'diff', 'incr')
 
         # loop over scheduled backups
@@ -546,7 +541,7 @@ class BackupDatabase:
 
     def find_old_backups(self, prior_date=None):
         # prepare regex to filter valid backups
-        regex_postfixes = '|'.join(self._postfixes.values())
+        regex_postfixes = '|'.join(self._postfixes)
         regex = re.compile('^({0})-({1})$'.format(self.date_regex,
                                                   regex_postfixes))
 
@@ -617,12 +612,11 @@ class BackupDatabase:
         # only "full" backups count as "full" backup
         if backup_level == 'full':
             accepted_postfixes = ('full', )
-        # both "full" and "differential" backups count as
-        # "differential" backup
-        elif backup_level == 'differential':
+        # both "full" and "diff" backups count as "diff" backup
+        elif backup_level == 'diff':
             accepted_postfixes = ('full', 'diff')
-        # all backup levels count as "incremental" backup
-        elif backup_level == 'incremental':
+        # all backup levels count as "incr" backup
+        elif backup_level == 'incr':
             accepted_postfixes = ('full', 'diff', 'incr')
 
         # backwards loop over found backups
@@ -769,7 +763,7 @@ class BackupDatabase:
         if backup_level == 'full':
             reference_base = 'none'
             reference_option = ''
-        elif backup_level == 'differential':
+        elif backup_level == 'diff':
             reference_base = self.name_of_last_backup('full')
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{0}-catalog'.format(reference_timestamp)
@@ -777,21 +771,21 @@ class BackupDatabase:
             full_path = os.path.join(self.backup_directory,
                                      reference_base, reference_catalog)
             reference_option = '--ref ' + self.sanitise_path(full_path)
-        elif backup_level == 'incremental':
+        elif backup_level == 'incr':
             last_full = self.days_since_last_backup('full')
-            last_differential = self.days_since_last_backup('differential')
-            last_incremental = self.days_since_last_backup('incremental')
+            last_diff = self.days_since_last_backup('diff')
+            last_incr = self.days_since_last_backup('incr')
 
             newest_backup = 'full'
             newest_age = last_full
 
-            if (last_differential >= 0) and (last_differential < newest_age):
-                newest_backup = 'differential'
-                newest_age = last_differential
+            if (last_diff >= 0) and (last_diff < newest_age):
+                newest_backup = 'diff'
+                newest_age = last_diff
 
-            if (last_incremental >= 0) and (last_incremental < newest_age):
-                newest_backup = 'incremental'
-                newest_age = last_incremental
+            if (last_incr >= 0) and (last_incr < newest_age):
+                newest_backup = 'incr'
+                newest_age = last_incr
 
             reference_base = self.name_of_last_backup(newest_backup)
             reference_timestamp = reference_base.rsplit('-', 1)[0]

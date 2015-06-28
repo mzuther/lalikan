@@ -86,14 +86,14 @@ class TestBackupDatabase(unittest.TestCase):
             self.settings, 'Test1')
 
         database._check_backup_level('full')
-        database._check_backup_level('incremental')
-        database._check_backup_level('differential')
+        database._check_backup_level('incr')
+        database._check_backup_level('diff')
 
         with self.assertRaises(ValueError):
-            database._check_backup_level('incr')
+            database._check_backup_level('incremental')
 
         with self.assertRaises(ValueError):
-            database._check_backup_level('diff')
+            database._check_backup_level('differential')
 
         with self.assertRaises(ValueError):
             database._check_backup_level('XXXX')
@@ -268,11 +268,11 @@ full:  2012-01-20 20:00:00
                 full)
 
             self.assertEqual(
-                database.last_scheduled_backup(now, 'differential'),
+                database.last_scheduled_backup(now, 'diff'),
                 diff)
 
             self.assertEqual(
-                database.last_scheduled_backup(now, 'incremental'),
+                database.last_scheduled_backup(now, 'incr'),
                 incr)
 
 
@@ -595,11 +595,11 @@ full:  2012-01-20 20:00:00
                 backup_full)
 
             self.assertTupleEqual(
-                database.last_existing_backup(now, 'differential'),
+                database.last_existing_backup(now, 'diff'),
                 backup_diff)
 
             self.assertTupleEqual(
-                database.last_existing_backup(now, 'incremental'),
+                database.last_existing_backup(now, 'incr'),
                 backup_incr)
 
 
@@ -630,11 +630,11 @@ full:  2012-01-20 20:00:00
                 None)
 
             self.assertEqual(
-                database.last_existing_backup(now, 'differential'),
+                database.last_existing_backup(now, 'diff'),
                 None)
 
             self.assertEqual(
-                database.last_existing_backup(now, 'incremental'),
+                database.last_existing_backup(now, 'incr'),
                 None)
 
 
@@ -697,11 +697,11 @@ full:  2012-01-20 20:00:00
                 delta_full / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue(now, 'differential'),
+                database.days_overdue(now, 'diff'),
                 delta_diff / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue(now, 'incremental'),
+                database.days_overdue(now, 'incr'),
                 delta_incr / datetime.timedelta(days=1))
 
 
@@ -942,12 +942,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'incremental')
+                'incr')
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'incremental')
+                'incr')
 
 
             """
@@ -982,12 +982,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'differential')
+                'diff')
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'differential')
+                'diff')
 
 
             """
@@ -1061,12 +1061,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'differential')
+                'diff')
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'differential')
+                'diff')
 
 
             """
@@ -1149,12 +1149,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'differential')
+                'diff')
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'differential')
+                'diff')
 
         finally:
             shutil.rmtree(backup_directory)
