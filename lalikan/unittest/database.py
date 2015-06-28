@@ -264,15 +264,15 @@ full:  2012-01-20 20:00:00
 
         def assertLastScheduledBackups(now, full, diff, incr):
             self.assertEqual(
-                database.last_scheduled_backup('full', now),
+                database.last_scheduled_backup(now, 'full'),
                 full)
 
             self.assertEqual(
-                database.last_scheduled_backup('differential', now),
+                database.last_scheduled_backup(now, 'differential'),
                 diff)
 
             self.assertEqual(
-                database.last_scheduled_backup('incremental', now),
+                database.last_scheduled_backup(now, 'incremental'),
                 incr)
 
 
@@ -591,15 +591,15 @@ full:  2012-01-20 20:00:00
         def assertLastExistingBackups(now, backup_full, backup_diff,
                                       backup_incr):
             self.assertTupleEqual(
-                database.last_existing_backup('full', now),
+                database.last_existing_backup(now, 'full'),
                 backup_full)
 
             self.assertTupleEqual(
-                database.last_existing_backup('differential', now),
+                database.last_existing_backup(now, 'differential'),
                 backup_diff)
 
             self.assertTupleEqual(
-                database.last_existing_backup('incremental', now),
+                database.last_existing_backup(now, 'incremental'),
                 backup_incr)
 
 
@@ -626,15 +626,15 @@ full:  2012-01-20 20:00:00
                                     hour=2, minute=0)
 
             self.assertEqual(
-                database.last_existing_backup('full', now),
+                database.last_existing_backup(now, 'full'),
                 None)
 
             self.assertEqual(
-                database.last_existing_backup('differential', now),
+                database.last_existing_backup(now, 'differential'),
                 None)
 
             self.assertEqual(
-                database.last_existing_backup('incremental', now),
+                database.last_existing_backup(now, 'incremental'),
                 None)
 
 

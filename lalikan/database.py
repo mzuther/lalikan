@@ -324,7 +324,7 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def calculate_backup_schedule(self, now):
+    def calculate_backup_schedule(self, point_in_time):
         # initialise dict to hold scheduled backup times
         start_times = {}
         for postfix in self._postfixes.values():
@@ -333,7 +333,7 @@ class BackupDatabase:
         # initialise variables to calculate all scheduled "full"
         # backups until given date
         current_start_time = self.start_time
-        backup_end_time = now
+        backup_end_time = point_in_time
         delta = datetime.timedelta(self.interval_full)
 
         # calculate all scheduled "full" backups until given date
@@ -458,11 +458,12 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def last_scheduled_backup(self, backup_level, now):
+    def last_scheduled_backup(self, point_in_time, backup_level):
+        # assert valid backup level
         self._check_backup_level(backup_level)
 
         # get last existing backup of given (or lower) level
-        last_existing = self.last_existing_backup(backup_level, now)
+        last_existing = self.last_existing_backup(point_in_time, backup_level)
 
         # get date of last existing backup
         if last_existing is not None:
@@ -474,39 +475,44 @@ class BackupDatabase:
 
         if backup_level == 'full':
             # see whether we need a "full" backup
-            full = self.__current_scheduled_backup(now, 'full')
+            full = self.__current_scheduled_backup(point_in_time, 'full')
             return full
         elif backup_level == 'differential':
             # do we need a "full" backup?
-            full = self.__current_scheduled_backup(now, 'full')
+            full = self.__current_scheduled_backup(point_in_time, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
             # otherwise, see whether we need a "differential" backup
-            diff = self.__current_scheduled_backup(now, 'differential')
+            diff = self.__current_scheduled_backup(
+                point_in_time, 'differential')
+
             return diff
         elif backup_level == 'incremental':
             # do we need a "full" backup?
-            full = self.__current_scheduled_backup(now, 'full')
+            full = self.__current_scheduled_backup(point_in_time, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
             # do we need a "differential" backup?
-            diff = self.__current_scheduled_backup(now, 'differential')
+            diff = self.__current_scheduled_backup(
+                point_in_time, 'differential')
+
             if (diff is not None) and (last_existing < diff[0]):
                 return diff
 
             # otherwise, see whether we need an "incremental" backup
-            incr = self.__current_scheduled_backup(now, 'incremental')
+            incr = self.__current_scheduled_backup(point_in_time, 'incremental')
             return incr
 
 
     @lalikan.utilities.Memoized
-    def next_scheduled_backup(self, backup_level, now):
+    def next_scheduled_backup(self, point_in_time, backup_level):
+        # assert valid backup level
         self._check_backup_level(backup_level)
 
         # find scheduled backups
-        scheduled_backups = self.calculate_backup_schedule(now)
+        scheduled_backups = self.calculate_backup_schedule(point_in_time)
 
         # no backups were scheduled
         if not scheduled_backups:
@@ -532,7 +538,7 @@ class BackupDatabase:
                 backup_level = scheduled_backups[index][1]
 
                 # ... and it lies in the future
-                if next_backup > now:
+                if next_backup > point_in_time:
                     return (next_backup, backup_level)
 
         assert False, "this part of the code should never be reached!"
@@ -597,11 +603,12 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def last_existing_backup(self, backup_level, now):
+    def last_existing_backup(self, point_in_time, backup_level):
+        # assert valid backup level
         self._check_backup_level(backup_level)
 
         # find existing backups
-        found_backups = self.find_old_backups(now)
+        found_backups = self.find_old_backups(point_in_time)
 
         # no backups were found
         if not found_backups:
@@ -636,13 +643,14 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def days_overdue(self, now, backup_level):
-        last_scheduled = self.last_scheduled_backup(backup_level, now)
-        last_existing = self.last_existing_backup(backup_level, now)
+    def days_overdue(self, point_in_time, backup_level):
+        last_scheduled = self.last_scheduled_backup(point_in_time, backup_level)
+        last_existing = self.last_existing_backup(point_in_time, backup_level)
 
         # no scheduled backup lies in the past
         if last_scheduled is None:
-            next_scheduled = self.next_scheduled_backup(backup_level, now)
+            next_scheduled = self.next_scheduled_backup(
+                point_in_time, backup_level)
             calculation_base = next_scheduled[0]
         # no backup of this level has been executed yet
         elif last_existing is None:
@@ -652,11 +660,13 @@ class BackupDatabase:
             calculation_base = last_scheduled[0]
         # last executed backup is current
         else:
-            next_scheduled = self.next_scheduled_backup(backup_level, now)
+            next_scheduled = self.next_scheduled_backup(
+                point_in_time, backup_level)
             calculation_base = next_scheduled[0]
 
         # calculate fractional days since/until scheduled backup
-        days_overdue = ((now - calculation_base) / datetime.timedelta(days=1))
+        days_overdue = point_in_time - calculation_base
+        days_overdue = days_overdue / datetime.timedelta(days=1)
 
         # negative numbers:  days since when backup level is overdue
         # positive numbers:  days until the next scheduled backup
@@ -728,12 +738,14 @@ class BackupDatabase:
 
         # Windows: DAR uses Cygwin internally
         if sys.platform in ('win32', 'cygwin'):
-            # extract drive
-            (drive, tail) = os.path.splitdrive(path_name)
+            # extract drive from path name
+            drive, tail = os.path.splitdrive(path_name)
 
-            # extract drive letter and convert to lower space
-            if drive:
-                drive = drive[0].lower()
+            # extract drive letter
+            drive = drive[0]
+
+            # convert to lower space
+            drive = drive.lower()
 
             # remove heading path separator from remaining path
             if tail.startswith(os.sep):
@@ -751,6 +763,7 @@ class BackupDatabase:
     # ----- OLD CODE -----
 
     def get_backup_reference(self, backup_level):
+        # assert valid backup level
         self._check_backup_level(backup_level)
 
         if backup_level == 'full':
