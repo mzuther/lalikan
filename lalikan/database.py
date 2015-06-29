@@ -70,7 +70,7 @@ class BackupDatabase:
         self._postfixes = ('full', 'diff', 'incr')
 
 
-    def get_option(self, option_name, allow_empty=False):
+    def _get_option(self, option_name, allow_empty=False):
         """
         Query current backup settings for specified option.
 
@@ -104,7 +104,7 @@ class BackupDatabase:
             String
 
         """
-        return self.get_option('dar_path')
+        return self._get_option('dar_path')
 
 
     @property
@@ -118,7 +118,7 @@ class BackupDatabase:
             String
 
         """
-        return self.get_option('dar_options', True)
+        return self._get_option('dar_options', True)
 
 
     @property
@@ -132,7 +132,7 @@ class BackupDatabase:
             String
 
         """
-        return self.get_option('backup_directory')
+        return self._get_option('backup_directory')
 
 
     @property
@@ -146,7 +146,7 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('interval_full')
+        interval = self._get_option('interval_full')
         return float(interval)
 
 
@@ -161,7 +161,7 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('interval_diff')
+        interval = self._get_option('interval_diff')
         return float(interval)
 
 
@@ -176,7 +176,7 @@ class BackupDatabase:
             float
 
         """
-        interval = self.get_option('interval_incr')
+        interval = self._get_option('interval_incr')
         return float(interval)
 
 
@@ -235,7 +235,7 @@ class BackupDatabase:
             :py:mod:`datetime.datetime`
 
         """
-        start_time = self.get_option('start_time')
+        start_time = self._get_option('start_time')
         return datetime.datetime.strptime(start_time, self.date_format)
 
 
@@ -280,7 +280,7 @@ class BackupDatabase:
             String
 
         """
-        return self.get_option('command_pre_run', True)
+        return self._get_option('command_pre_run', True)
 
 
     @property
@@ -295,7 +295,34 @@ class BackupDatabase:
             String
 
         """
-        return self.get_option('command_post_run', True)
+        return self._get_option('command_post_run', True)
+
+
+    def _accepted_backup_levels(self, backup_level):
+        """
+        Get backup levels that will be accepted as substitute for given
+        backup level.
+
+        :param backup_level:
+            backup level
+        :type backup_level:
+            String
+
+        :returns:
+            accepted backup levels
+        :rtype:
+            list
+
+        """
+        accepted_levels = []
+
+        # count all backup levels above given backup level as valid
+        for level in self._backup_levels:
+            accepted_levels.append(level)
+            if level == backup_level:
+                break
+
+        return accepted_levels
 
 
     def _check_backup_level(self, backup_level):
@@ -331,7 +358,7 @@ class BackupDatabase:
             list of tuple(:py:mod:`datetime.datetime`, String)
 
         :param backup_level:
-            backup level
+            backup level ("diff" or "incr")
         :type backup_level:
             String
 
@@ -434,7 +461,7 @@ class BackupDatabase:
 
 
     @lalikan.utilities.Memoized
-    def __current_scheduled_backup(self, point_in_time, backup_level):
+    def _current_scheduled_backup(self, point_in_time, backup_level):
         """
         Find current scheduled backup for a given backup level.
 
@@ -460,22 +487,15 @@ class BackupDatabase:
         # reverse order of scheduled backups
         reversed_schedule = reversed(schedule)
 
-        # only "full" backups count as "full" backup
-        if backup_level == 'full':
-            accepted_postfixes = ('full', )
-        # both "full" and "diff" backups count as
-        # "diff" backup
-        elif backup_level == 'diff':
-            accepted_postfixes = ('full', 'diff')
-        # all backup levels count as "incr" backup
-        elif backup_level == 'incr':
-            accepted_postfixes = ('full', 'diff', 'incr')
+        # get backup levels that will be accepted as substitute for
+        # given backup level
+        accepted_levels = self._accepted_backup_levels(backup_level)
 
         # loop over reversed schedule
         for scheduled_backup in reversed_schedule:
             # we found the current scheduled backup when it matches
             # any of the accepted levels ...
-            if scheduled_backup[1] in accepted_postfixes:
+            if scheduled_backup[1] in accepted_levels:
                 # ... and it doesn't lie in the future
                 if scheduled_backup[0] <= point_in_time:
                     return scheduled_backup
@@ -502,34 +522,32 @@ class BackupDatabase:
 
         if backup_level == 'full':
             # see whether we need a "full" backup
-            full = self.__current_scheduled_backup(point_in_time, 'full')
+            full = self._current_scheduled_backup(point_in_time, 'full')
             return full
         elif backup_level == 'diff':
             # do we need a "full" backup?
-            full = self.__current_scheduled_backup(point_in_time, 'full')
+            full = self._current_scheduled_backup(point_in_time, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
             # otherwise, see whether we need a "diff" backup
-            diff = self.__current_scheduled_backup(
-                point_in_time, 'diff')
+            diff = self._current_scheduled_backup(point_in_time, 'diff')
 
             return diff
         elif backup_level == 'incr':
             # do we need a "full" backup?
-            full = self.__current_scheduled_backup(point_in_time, 'full')
+            full = self._current_scheduled_backup(point_in_time, 'full')
             if (full is not None) and (last_existing < full[0]):
                 return full
 
             # do we need a "diff" backup?
-            diff = self.__current_scheduled_backup(
-                point_in_time, 'diff')
+            diff = self._current_scheduled_backup(point_in_time, 'diff')
 
             if (diff is not None) and (last_existing < diff[0]):
                 return diff
 
             # otherwise, see whether we need an "incr" backup
-            incr = self.__current_scheduled_backup(point_in_time, 'incr')
+            incr = self._current_scheduled_backup(point_in_time, 'incr')
             return incr
 
 
@@ -545,21 +563,15 @@ class BackupDatabase:
         if not scheduled_backups:
             assert False, "this part of the code should never be reached!"
 
-        # only "full" backups count as "full" backup
-        if backup_level == 'full':
-            accepted_postfixes = ('full', )
-        # both "full" and "diff" backups count as "diff" backup
-        elif backup_level == 'diff':
-            accepted_postfixes = ('full', 'diff')
-        # all backup levels count as "incr" backup
-        elif backup_level == 'incr':
-            accepted_postfixes = ('full', 'diff', 'incr')
+        # get backup levels that will be accepted as substitute for
+        # given backup level
+        accepted_levels = self._accepted_backup_levels(backup_level)
 
         # loop over scheduled backups
         for index in range(len(scheduled_backups)):
             # we found the next scheduled backup when the current one
             # matches any of the accepted levels ...
-            if scheduled_backups[index][1] in accepted_postfixes:
+            if scheduled_backups[index][1] in accepted_levels:
                 next_backup = scheduled_backups[index][0]
                 backup_level = scheduled_backups[index][1]
 
@@ -640,15 +652,9 @@ class BackupDatabase:
         if not found_backups:
             return None
 
-        # only "full" backups count as "full" backup
-        if backup_level == 'full':
-            accepted_postfixes = ('full', )
-        # both "full" and "diff" backups count as "diff" backup
-        elif backup_level == 'diff':
-            accepted_postfixes = ('full', 'diff')
-        # all backup levels count as "incr" backup
-        elif backup_level == 'incr':
-            accepted_postfixes = ('full', 'diff', 'incr')
+        # get backup levels that will be accepted as substitute for
+        # given backup level
+        accepted_levels = self._accepted_backup_levels(backup_level)
 
         # backwards loop over found backups
         for n in range(len(found_backups), 0, -1):
@@ -657,7 +663,7 @@ class BackupDatabase:
 
             # we found the last backup when the current one matches
             # any of the accepted levels
-            if found_backups[index][1] in accepted_postfixes:
+            if found_backups[index][1] in accepted_levels:
                 last_existing = datetime.datetime.strptime(
                     found_backups[index][0], self.date_format)
                 backup_level = found_backups[index][1]

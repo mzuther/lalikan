@@ -156,6 +156,23 @@ class TestBackupDatabase(unittest.TestCase):
             'sudo mount -o remount,ro /mnt/backup/')
 
 
+    def test_accepted_backup_levels(self):
+        database = lalikan.database.BackupDatabase(
+            self.settings, 'Test1')
+
+        self.assertEqual(
+            database._accepted_backup_levels('full'),
+            ['full'])
+
+        self.assertEqual(
+            database._accepted_backup_levels('diff'),
+            ['full', 'diff'])
+
+        self.assertEqual(
+            database._accepted_backup_levels('incr'),
+            ['full', 'diff', 'incr'])
+
+
     def __calculate_backup_schedule(self, database, current_datetime,
                                     expected_schedule):
         backup_schedule = database.calculate_backup_schedule(current_datetime)
