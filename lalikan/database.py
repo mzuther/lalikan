@@ -255,17 +255,26 @@ class BackupDatabase:
 
 
     @property
-    def date_regex(self):
+    def backup_regex(self):
         """
-        Attribute: regular expression for matching backup dates.
+        Attribute: regular expression for matching backup directory names.
 
         :returns:
-            regular expression
+            compiled regular expression object
         :rtype:
-            String
+            :py:mod:`re`
 
         """
-        return '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}'
+        # regular expression for valid backup dates
+        date_regex = '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}'
+
+        # regular expression for valid backup postfixes
+        postfix_regex = '|'.join(self._postfixes)
+
+        # compile regular expression for valid backup directory names
+        regex = re.compile('^({0})-({1})$'.format(date_regex, postfix_regex))
+
+        return regex
 
 
     @property
@@ -504,6 +513,111 @@ class BackupDatabase:
         return None
 
 
+    def find_existing_backups(self, prior_to=None):
+        """
+        Find existing backups.  May be limited to backups prior to (or
+        exactly at) a given point in time.
+
+        :param prior_to:
+            given point in time
+        :type prior_to:
+            None or :py:mod:`datetime.datetime`
+
+        :returns:
+            existing backups (timestamp and backup level)
+        :rtype:
+            tuple(String, String)
+
+        """
+        # look for existing backups
+        existing_backups = []
+
+        # get subdirectories in backup directory
+        directories = [f for f in os.listdir(self.backup_directory)
+                       if os.path.isdir(os.path.join(self.backup_directory, f))]
+
+        # loop over subdirectories
+        for dirname in directories:
+            # check whether the path matches the regular expression
+            # for backup directory names
+            match = self.backup_regex.match(dirname)
+
+            # path name matches regular expression
+            if match is not None:
+                # extract path elements
+                timestamp, backup_level = match.groups()
+
+                # convert to absolute path name
+                full_path = os.path.join(self.backup_directory, dirname)
+
+                # valid backups contain a backup catalog; prepare
+                # search for this catalog
+                catalog_name = '{0}-catalog.01.dar'.format(timestamp)
+                catalog_path = os.path.join(full_path, catalog_name)
+
+                # catalog file exists
+                if os.path.isfile(catalog_path):
+                    # regard path as valid backup
+                    existing_backups.append((timestamp, backup_level))
+
+        # sort backups by path name
+        existing_backups.sort()
+
+        # optionally filter backups by date
+        if prior_to:
+            temp = []
+
+            # loop over found backups
+            for backup in existing_backups:
+                # convert timestamp to "datetime" object
+                timestamp = backup[0]
+                backup_date = datetime.datetime.strptime(
+                    timestamp, self.date_format)
+
+                # keep backups prior to (or exactly at) given date
+                if backup_date <= prior_to:
+                    temp.append(backup)
+
+            # store filtered backups
+            existing_backups = temp
+
+        #return result
+        return existing_backups
+
+
+    @lalikan.utilities.Memoized
+    def last_existing_backup(self, point_in_time, backup_level):
+        # assert valid backup level
+        self._check_backup_level(backup_level)
+
+        # find existing backups
+        existing_backups = self.find_existing_backups(point_in_time)
+
+        # no backups were found
+        if not existing_backups:
+            return None
+
+        # get backup levels that will be accepted as substitute for
+        # given backup level
+        accepted_levels = self._accepted_backup_levels(backup_level)
+
+        # backwards loop over found backups
+        for n in range(len(existing_backups), 0, -1):
+            # sequences start at index zero
+            index = n - 1
+
+            # we found the last backup when the current one matches
+            # any of the accepted levels
+            if existing_backups[index][1] in accepted_levels:
+                last_existing = datetime.datetime.strptime(
+                    existing_backups[index][0], self.date_format)
+                backup_level = existing_backups[index][1]
+
+                return (last_existing, backup_level)
+
+        assert False, "this part of the code should never be reached!"
+
+
     @lalikan.utilities.Memoized
     def last_scheduled_backup(self, point_in_time, backup_level):
         # assert valid backup level
@@ -578,97 +692,6 @@ class BackupDatabase:
                 # ... and it lies in the future
                 if next_backup > point_in_time:
                     return (next_backup, backup_level)
-
-        assert False, "this part of the code should never be reached!"
-
-
-    def find_old_backups(self, prior_date=None):
-        # prepare regex to filter valid backups
-        regex_postfixes = '|'.join(self._postfixes)
-        regex = re.compile('^({0})-({1})$'.format(self.date_regex,
-                                                  regex_postfixes))
-
-        # look for created backups (either real or simulated)
-        found_backups = []
-
-        # find all subdirectories in backup directory
-        for dirname in os.listdir(self.backup_directory):
-            # convert found path to absolute path
-            full_path = os.path.join(self.backup_directory, dirname)
-
-            # check whether found path is a directory ...
-            if os.path.isdir(full_path):
-                # ... which name matches the date/postfix regex
-                m = regex.match(dirname)
-
-                # extract path composition from matching paths
-                if m is not None:
-                    (timestamp, postfix) = m.groups()
-
-                    # prepare search for backup catalog
-                    catalog_name = '{0}-catalog.01.dar'.format(timestamp)
-                    catalog_full = os.path.join(full_path, catalog_name)
-
-                    # look for readable catalog file
-                    if os.access(catalog_full, os.R_OK):
-                        # regard path as valid backup
-                        found_backups.append((timestamp, postfix))
-
-        # sort found backups by path
-        found_backups.sort(key=lambda i: str.lower(i[0]))
-
-        # optinally filter found backups by date
-        if isinstance(prior_date, datetime.datetime):
-            found_backups_old = found_backups
-            found_backups = []
-
-            # loop over found backups
-            for found_backup in found_backups_old:
-                # convert timestamp to "datetime" object
-                timestamp = found_backup[0]
-                backup_date = datetime.datetime.strptime(
-                    timestamp, self.date_format)
-
-                # keep backups prior to (or at!) given date
-                if backup_date <= prior_date:
-                    found_backups.append(found_backup)
-
-        # make result read-only
-        found_backups = tuple(found_backups)
-
-        #return result
-        return found_backups
-
-
-    @lalikan.utilities.Memoized
-    def last_existing_backup(self, point_in_time, backup_level):
-        # assert valid backup level
-        self._check_backup_level(backup_level)
-
-        # find existing backups
-        found_backups = self.find_old_backups(point_in_time)
-
-        # no backups were found
-        if not found_backups:
-            return None
-
-        # get backup levels that will be accepted as substitute for
-        # given backup level
-        accepted_levels = self._accepted_backup_levels(backup_level)
-
-        # backwards loop over found backups
-        for n in range(len(found_backups), 0, -1):
-            # sequences start at index zero
-            index = n - 1
-
-            # we found the last backup when the current one matches
-            # any of the accepted levels
-            if found_backups[index][1] in accepted_levels:
-                last_existing = datetime.datetime.strptime(
-                    found_backups[index][0], self.date_format)
-                backup_level = found_backups[index][1]
-
-                return (last_existing, backup_level)
 
         assert False, "this part of the code should never be reached!"
 

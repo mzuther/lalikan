@@ -144,10 +144,6 @@ class TestBackupDatabase(unittest.TestCase):
             '%Y-%m-%d_%H%M')
 
         self.assertEqual(
-            database.date_regex,
-            '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}')
-
-        self.assertEqual(
             database.pre_run_command,
             'sudo mount -o remount,rw /mnt/backup/')
 
@@ -535,7 +531,7 @@ full:  2012-01-20 20:00:00
             shutil.rmtree(backup_directory)
 
 
-    def test_find_old_backups(self):
+    def test_find_existing_backups(self):
         database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
         backup_directory = database.backup_directory
@@ -544,60 +540,61 @@ full:  2012-01-20 20:00:00
             assert not os.path.exists(backup_directory)
             os.makedirs(backup_directory)
 
-            self.assertTupleEqual(
-                database.find_old_backups(),
-                ())
+            self.assertListEqual(
+                database.find_existing_backups(),
+                [])
 
             # valid (but faked) backups
-            faked_backups = (
+            faked_backups = [
                 ('2012-01-02_0201', 'full'),
                 ('2012-01-03_2000', 'incr'),
                 ('2012-01-04_2134', 'incr'),
                 ('2012-01-05_2034', 'diff'),
                 ('2012-01-05_2134', 'incr'),
-            )
+                ('xxxx-xx-xx_xxxx', 'xxxx'),
+            ]
 
             self.__simulate_backups(database, backup_directory, faked_backups)
 
-            self.assertTupleEqual(
-                database.find_old_backups(datetime.datetime(
+            self.assertListEqual(
+                database.find_existing_backups(datetime.datetime(
                         year=2012, month=1, day=2,
                         hour=2, minute=0)),
-                ())
+                [])
 
-            self.assertTupleEqual(
-                database.find_old_backups(datetime.datetime(
+            self.assertListEqual(
+                database.find_existing_backups(),
+                faked_backups[:5])
+
+            self.assertListEqual(
+                database.find_existing_backups(datetime.datetime(
                         year=2012, month=1, day=2,
                         hour=2, minute=1)),
                 faked_backups[:1])
 
-            self.assertTupleEqual(
-                database.find_old_backups(datetime.datetime(
+            self.assertListEqual(
+                database.find_existing_backups(datetime.datetime(
                         year=2012, month=1, day=5,
                         hour=12, minute=33)),
                 faked_backups[:3])
 
-            self.assertTupleEqual(
-                database.find_old_backups(datetime.datetime(
+            self.assertListEqual(
+                database.find_existing_backups(datetime.datetime(
                         year=2012, month=1, day=5,
                         hour=20, minute=34)),
                 faked_backups[:4])
 
-            self.assertTupleEqual(
-                database.find_old_backups(datetime.datetime(
+            self.assertListEqual(
+                database.find_existing_backups(datetime.datetime(
                         year=2012, month=1, day=5,
                         hour=20, minute=35)),
                 faked_backups[:4])
 
-            self.assertTupleEqual(
-                database.find_old_backups(datetime.datetime(
+            self.assertListEqual(
+                database.find_existing_backups(datetime.datetime(
                         year=2099, month=12, day=31,
                         hour=23, minute=59)),
-                faked_backups)
-
-            self.assertTupleEqual(
-                database.find_old_backups(),
-                faked_backups)
+                faked_backups[:5])
 
         finally:
             shutil.rmtree(backup_directory)
