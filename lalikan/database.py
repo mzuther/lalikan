@@ -493,21 +493,22 @@ class BackupDatabase:
         # find scheduled backups
         schedule = self.calculate_backup_schedule(point_in_time)
 
-        # reverse order of scheduled backups
-        reversed_schedule = reversed(schedule)
-
         # get backup levels that will be accepted as substitute for
         # given backup level
         accepted_levels = self._accepted_backup_levels(backup_level)
 
-        # loop over reversed schedule
-        for scheduled_backup in reversed_schedule:
+        # backwards loop over schedule
+        for backup in reversed(schedule):
+            backup_level = backup[1]
+
             # we found the current scheduled backup when it matches
             # any of the accepted levels ...
-            if scheduled_backup[1] in accepted_levels:
+            if backup_level in accepted_levels:
+                backup_time = backup[0]
+
                 # ... and it doesn't lie in the future
-                if scheduled_backup[0] <= point_in_time:
-                    return scheduled_backup
+                if backup_time <= point_in_time:
+                    return backup
 
         # no matching scheduled backup found
         return None
@@ -590,7 +591,7 @@ class BackupDatabase:
         # assert valid backup level
         self._check_backup_level(backup_level)
 
-        # find existing backups
+        # find existing backups prior to (or exactly at) given date
         existing_backups = self.find_existing_backups(point_in_time)
 
         # no backups were found
@@ -601,21 +602,17 @@ class BackupDatabase:
         # given backup level
         accepted_levels = self._accepted_backup_levels(backup_level)
 
-        # backwards loop over found backups
-        for n in range(len(existing_backups), 0, -1):
-            # sequences start at index zero
-            index = n - 1
+        # backwards loop over existing backups
+        for backup in reversed(existing_backups):
+            backup_level = backup[1]
 
             # we found the last backup when the current one matches
             # any of the accepted levels
-            if existing_backups[index][1] in accepted_levels:
+            if backup_level in accepted_levels:
                 last_existing = datetime.datetime.strptime(
-                    existing_backups[index][0], self.date_format)
-                backup_level = existing_backups[index][1]
+                    backup[0], self.date_format)
 
                 return (last_existing, backup_level)
-
-        assert False, "this part of the code should never be reached!"
 
 
     @lalikan.utilities.Memoized
@@ -749,10 +746,10 @@ class BackupDatabase:
 
         """
         # check necessity of a backup for all backup levels
-        for backup_level in self._backup_levels:
+        for level in self._backup_levels:
             # a backup of this level is necessary
-            if self.days_overdue(point_in_time, backup_level) >= 0.0:
-                return backup_level
+            if self.days_overdue(point_in_time, level) >= 0.0:
+                return level
 
         # force backup, but only after schedule begins
         if force_backup and point_in_time >= self.start_time:
