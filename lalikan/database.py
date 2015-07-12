@@ -588,9 +588,25 @@ class BackupDatabase:
 
     @lalikan.utilities.Memoized
     def last_existing_backup(self, point_in_time, backup_level):
-        # assert valid backup level
-        self._check_backup_level(backup_level)
+        """
+        Find last existing backup for a given backup level.
 
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :param backup_level:
+            backup level
+        :type backup_level:
+            String
+
+        :returns:
+            time and postfix of last existing backup
+        :rtype:
+            tuple containing datetime.datetime and String (or None)
+
+        """
         # find existing backups prior to (or exactly at) given date
         existing_backups = self.find_existing_backups(point_in_time)
 
@@ -609,10 +625,14 @@ class BackupDatabase:
             # we found the last backup when the current one matches
             # any of the accepted levels
             if backup_level in accepted_levels:
+                # convert timestamp to datetime.datetime
                 last_existing = datetime.datetime.strptime(
                     backup[0], self.date_format)
 
                 return (last_existing, backup_level)
+
+        # no matching existing backup found
+        return None
 
 
     @lalikan.utilities.Memoized
