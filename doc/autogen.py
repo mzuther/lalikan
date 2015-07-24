@@ -70,7 +70,7 @@ def exclude_directories(path):
 
 if __name__ == '__main__':
     # directory that should be monitored
-    directory_to_watch = '..'
+    directory_to_watch = '../src'
 
     # command to be run initially.  "unbuffer" pretends a TTY, thus
     # keeping escape sequences

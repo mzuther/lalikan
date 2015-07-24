@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Python source directory
+source_dir=./src
+
+# run unit tests
+"$source_dir/UnitTest.py" $*

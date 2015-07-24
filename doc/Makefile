@@ -54,7 +54,8 @@ clean:
 html:
 	@echo "Creating reStructuredText files..."
 	@echo
-	@sphinx-apidoc --force --separate ../ -o .
+	@find *.rst -maxdepth 1 -type f ! -name index.rst -delete
+	@sphinx-apidoc --force --separate --output-dir=. ../src/
 	@echo
 	@echo "Building documentation..."
 	@echo
