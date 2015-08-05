@@ -25,6 +25,7 @@ import os
 import re
 import sys
 
+import lalikan.properties
 import lalikan.utilities
 
 # initialise localisation settings
@@ -61,10 +62,10 @@ class BackupDatabase:
 
         # valid backup levels
         #
-        # full: complete backup, contains everything
-        # diff: differential, contains all changes since last full backup
-        # incr: incremental, contains all changes since last backup
-        self._backup_levels = ('full', 'diff', 'incr')
+        # 0: full backup, contains everything
+        # 1: differential, contains all changes since last full backup
+        # 2: incremental, contains all changes since last backup
+        self._backup_levels = (0, 1, 2)
 
         # backup file name postfixes time for all backup levels
         self._postfixes = ('full', 'diff', 'incr')
@@ -143,41 +144,41 @@ class BackupDatabase:
         :returns:
             backup interval in days
         :rtype:
-            float
+            :py:mod:`datetime.timedelta`
 
         """
-        interval = self._get_option('interval_full')
-        return float(interval)
+        interval = float(self._get_option('interval_full'))
+        return datetime.timedelta(interval)
 
 
     @property
     def interval_diff(self):
         """
-        Attribute: interval for "diff" backups.
+        Attribute: interval for "differential" backups.
 
         :returns:
             backup interval in days
         :rtype:
-            float
+            :py:mod:`datetime.timedelta`
 
         """
-        interval = self._get_option('interval_diff')
-        return float(interval)
+        interval = float(self._get_option('interval_diff'))
+        return datetime.timedelta(interval)
 
 
     @property
     def interval_incr(self):
         """
-        Attribute: interval for "incr" backups.
+        Attribute: interval for "incremental" backups.
 
         :returns:
             backup interval in days
         :rtype:
-            float
+            :py:mod:`datetime.timedelta`
 
         """
-        interval = self._get_option('interval_incr')
-        return float(interval)
+        interval = float(self._get_option('interval_incr'))
+        return datetime.timedelta(interval)
 
 
     @property
@@ -191,7 +192,7 @@ class BackupDatabase:
             String
 
         """
-        return 'full'
+        return self._postfixes[0]
 
 
     @property
@@ -205,7 +206,7 @@ class BackupDatabase:
             String
 
         """
-        return 'diff'
+        return self._postfixes[1]
 
 
     @property
@@ -219,7 +220,7 @@ class BackupDatabase:
             String
 
         """
-        return 'incr'
+        return self._postfixes[2]
 
 
     @property
@@ -313,9 +314,9 @@ class BackupDatabase:
         backup level.
 
         :param backup_level:
-            backup level
+            backup level (0 to 2)
         :type backup_level:
-            String
+            integer
 
         :returns:
             accepted backup levels
@@ -323,29 +324,22 @@ class BackupDatabase:
             list
 
         """
-        accepted_levels = []
-
         # count all backup levels above given backup level as valid
-        for level in self._backup_levels:
-            accepted_levels.append(level)
-            if level == backup_level:
-                break
-
-        return accepted_levels
+        return self._backup_levels[0:backup_level + 1]
 
 
     def _check_backup_level(self, backup_level):
         """
         Checks whether the specified backup level (such as "full")
-        actually exists.
+        is allowed.
 
         :param backup_level:
             backup level
         :type backup_level:
-            String
+            integer
 
-        :raises: :py:class:`ValueError`
-
+        :raises:
+            :py:class:`ValueError`
         :rtype:
             None
 
@@ -355,7 +349,7 @@ class BackupDatabase:
                 'wrong backup level given ("{0}")'.format(backup_level))
 
 
-    def _fill_schedule(self, schedule, backup_level, interval):
+    def _fill_schedule(self, schedule, backup_level):
         """
         Fill schedule with backups of a certain backup level using a given
         interval.
@@ -364,35 +358,39 @@ class BackupDatabase:
             existing schedule containing times and corresponding
             backup levels
         :type schedule:
-            list of tuple(:py:mod:`datetime.datetime`, String)
+            list of lalikan.properties.BackupProperties
 
         :param backup_level:
-            backup level ("diff" or "incr")
+            backup level (1 or 2)
         :type backup_level:
-            String
-
-        :param interval:
-            backup interval
-        :type interval:
-            :py:mod:`datetime.timedelta`
+            integer
 
         :returns:
             updated schedule containing times and corresponding backup
             levels
         :rtype:
-            list of tuple(:py:mod:`datetime.datetime`, String)
+            list of lalikan.properties.BackupProperties
 
         """
+        # check backup level
+        if backup_level == 1:
+            interval = self.interval_diff
+        elif backup_level == 2:
+            interval = self.interval_incr
+        else:
+            raise ValueError(
+                'wrong backup level given ("{0}")'.format(backup_level))
+
         # temporary storage for newly scheduled backups
         temp_schedule = []
 
         # loop over existing schedule, ignoring the last entry
         for n in range(len(schedule) - 1):
             # start with current scheduled backup
-            start_time = schedule[n][0]
+            start_time = schedule[n].date
 
             # end with next scheduled backup
-            end_time = schedule[n + 1][0]
+            end_time = schedule[n + 1].date
 
             # add one interval so that existing and new backup do not
             # overlap
@@ -401,7 +399,8 @@ class BackupDatabase:
             # calculate backup start times
             while start_time < end_time:
                 # store new backup
-                new_backup = (start_time, backup_level)
+                new_backup = lalikan.properties.BackupProperties(
+                    start_time, backup_level)
                 temp_schedule.append(new_backup)
 
                 # move on
@@ -410,8 +409,8 @@ class BackupDatabase:
         # consolidate backup start times
         schedule.extend(temp_schedule)
 
-        # sort consolidated backup start times by date
-        schedule = sorted(schedule, key=lambda k: k[0])
+        # sort consolidated schedule by date and time
+        schedule = sorted(schedule)
 
         # return updated schedule
         return schedule
@@ -429,41 +428,39 @@ class BackupDatabase:
             :py:mod:`datetime.datetime`
 
         :returns:
-            backup schedule containing times and corresponding backup
-            levels
+            backup schedule
         :rtype:
-            list of tuple(:py:mod:`datetime.datetime`, String)
+            list of lalikan.properties.BackupProperties
 
         """
-        # prepare backup intervals
-        delta_full = datetime.timedelta(self.interval_full)
-        delta_diff = datetime.timedelta(self.interval_diff)
-        delta_incr = datetime.timedelta(self.interval_incr)
-
         # calculate first "full" backup after the given date
         current_start_time = self.start_time
         while current_start_time <= point_in_time:
-            current_start_time += delta_full
+            current_start_time += self.interval_full
 
         # store upcoming "full" backup
-        new_backup = (current_start_time, 'full')
+        new_backup = lalikan.properties.BackupProperties(
+            current_start_time, 0)
         schedule = [new_backup]
 
         # calculate previous "full" backup
-        current_start_time -= delta_full
+        current_start_time -= self.interval_full
 
         # store previous "full" backup (if valid)
         if current_start_time >= self.start_time:
-            new_backup = (current_start_time, 'full')
+            new_backup = lalikan.properties.BackupProperties(
+                current_start_time, 0)
+
+            # store at the beginning of the list
             schedule.insert(0, new_backup)
 
         # found "full" backup prior to given date
         if len(schedule) > 1:
             # fill schedule with "diff" backups
-            schedule = self._fill_schedule(schedule, 'diff', delta_diff)
+            schedule = self._fill_schedule(schedule, 1)
 
             # fill schedule with "incr" backups
-            schedule = self._fill_schedule(schedule, 'incr', delta_incr)
+            schedule = self._fill_schedule(schedule, 2)
 
         # return schedule
         return schedule
@@ -480,14 +477,14 @@ class BackupDatabase:
             :py:mod:`datetime.datetime`
 
         :param backup_level:
-            backup level
+            backup level (0 to 2)
         :type backup_level:
-            String
+            integer
 
         :returns:
-            time and postfix of current scheduled backup
+            current scheduled backup
         :rtype:
-            tuple containing datetime.datetime and String (or None)
+            lalikan.properties.BackupProperties
 
         """
         # find scheduled backups
@@ -499,59 +496,61 @@ class BackupDatabase:
 
         # backwards loop over schedule
         for backup in reversed(schedule):
-            backup_level = backup[1]
-
             # we found the current scheduled backup when it matches
             # any of the accepted levels ...
-            if backup_level in accepted_levels:
-                backup_time = backup[0]
-
+            if backup.level in accepted_levels:
                 # ... and it doesn't lie in the future
-                if backup_time <= point_in_time:
+                if backup.date <= point_in_time:
                     return backup
 
         # no matching scheduled backup found
-        return None
+        return lalikan.properties.BackupProperties(None, backup_level)
 
 
     def find_existing_backups(self, prior_to=None):
         """
-        Find existing backups.  May be limited to backups prior to (or
-        exactly at) a given point in time.
+        Find existing backups.  The result can be filtered to backups
+        prior to (or exactly at) a given point in time.
 
         :param prior_to:
             given point in time
         :type prior_to:
-            None or :py:mod:`datetime.datetime`
+            :py:mod:`datetime.datetime` or None
 
         :returns:
-            existing backups (timestamp and backup level)
+            list of existing backups
         :rtype:
-            tuple(String, String)
+            list of lalikan.properties.BackupProperties
 
         """
+        # get subdirectories in backup directory
+        subdirectories = [f for f in os.listdir(self.backup_directory)
+                       if os.path.isdir(os.path.join(self.backup_directory, f))]
+
         # look for existing backups
         existing_backups = []
 
-        # get subdirectories in backup directory
-        directories = [f for f in os.listdir(self.backup_directory)
-                       if os.path.isdir(os.path.join(self.backup_directory, f))]
-
         # loop over subdirectories
-        for dirname in directories:
+        for dirname in subdirectories:
             # check whether the path matches the regular expression
             # for backup directory names
             match = self.backup_regex.match(dirname)
 
             # path name matches regular expression
-            if match is not None:
+            if match:
                 # extract path elements
-                timestamp, backup_level = match.groups()
+                timestamp, suffix = match.groups()
+
+                # convert timestamp to "datetime" object
+                date = datetime.datetime.strptime(timestamp, self.date_format)
+
+                # convert suffix to backup level
+                backup_level = self._postfixes.index(suffix)
 
                 # convert to absolute path name
                 full_path = os.path.join(self.backup_directory, dirname)
 
-                # valid backups contain a backup catalog; prepare
+                # valid backups contain a backup catalog; prepare a
                 # search for this catalog
                 catalog_name = '{0}-catalog.01.dar'.format(timestamp)
                 catalog_path = os.path.join(full_path, catalog_name)
@@ -559,24 +558,21 @@ class BackupDatabase:
                 # catalog file exists
                 if os.path.isfile(catalog_path):
                     # regard path as valid backup
-                    existing_backups.append((timestamp, backup_level))
+                    existing_backups.append(
+                        lalikan.properties.BackupProperties(
+                            date, backup_level))
 
-        # sort backups by path name
+        # sort backups by date and time
         existing_backups.sort()
 
         # optionally filter backups by date
         if prior_to:
             temp = []
 
-            # loop over found backups
+            # loop over backups
             for backup in existing_backups:
-                # convert timestamp to "datetime" object
-                timestamp = backup[0]
-                backup_date = datetime.datetime.strptime(
-                    timestamp, self.date_format)
-
-                # keep backups prior to (or exactly at) given date
-                if backup_date <= prior_to:
+                # keep only backups prior to (or exactly at) given date
+                if backup.date <= prior_to:
                     temp.append(backup)
 
             # store filtered backups
@@ -597,22 +593,22 @@ class BackupDatabase:
             :py:mod:`datetime.datetime`
 
         :param backup_level:
-            backup level
+            backup level (0 to 2)
         :type backup_level:
-            String
+            index
 
         :returns:
-            time and postfix of last existing backup
+            last existing backup
         :rtype:
-            tuple containing datetime.datetime and String (or None)
+            lalikan.properties.BackupProperties
 
         """
         # find existing backups prior to (or exactly at) given date
         existing_backups = self.find_existing_backups(point_in_time)
 
         # no backups were found
-        if not existing_backups:
-            return None
+        if len(existing_backups) == 0:
+            return lalikan.properties.BackupProperties(None, backup_level)
 
         # get backup levels that will be accepted as substitute for
         # given backup level
@@ -620,127 +616,167 @@ class BackupDatabase:
 
         # backwards loop over existing backups
         for backup in reversed(existing_backups):
-            backup_level = backup[1]
-
             # we found the last backup when the current one matches
             # any of the accepted levels
-            if backup_level in accepted_levels:
-                # convert timestamp to datetime.datetime
-                last_existing = datetime.datetime.strptime(
-                    backup[0], self.date_format)
-
-                return (last_existing, backup_level)
+            if backup.level in accepted_levels:
+                return backup
 
         # no matching existing backup found
-        return None
+        return lalikan.properties.BackupProperties(None, backup_level)
 
 
     @lalikan.utilities.Memoized
     def last_scheduled_backup(self, point_in_time, backup_level):
+        """
+        Find last scheduled backup for a given backup level.
+
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :param backup_level:
+            backup level (0 to 2)
+        :type backup_level:
+            index
+
+        :returns:
+            last scheduled backup
+        :rtype:
+            lalikan.properties.BackupProperties
+
+        """
         # assert valid backup level
         self._check_backup_level(backup_level)
 
-        # get last existing backup of given (or lower) level
+        # get date of last existing backup of given (or lower) level
         last_existing = self.last_existing_backup(point_in_time, backup_level)
+        last_existing_date = last_existing.date
 
-        # get date of last existing backup
-        if last_existing is not None:
-            last_existing = last_existing[0]
-        # if this fails, use date of the Epoch so that "last_existing"
-        # can be compared to "datetime" objects
-        else:
-            last_existing = datetime.datetime(1970, 1, 1)
+        # if this fails, use date of the Epoch so that comparisons
+        # with "datetime" objects leave meaningful results
+        if not last_existing.is_valid:
+            last_existing_date = datetime.datetime(1970, 1, 1)
 
-        if backup_level == 'full':
-            # see whether we need a "full" backup
-            full = self._current_scheduled_backup(point_in_time, 'full')
-            return full
-        elif backup_level == 'diff':
-            # do we need a "full" backup?
-            full = self._current_scheduled_backup(point_in_time, 'full')
-            if (full is not None) and (last_existing < full[0]):
-                return full
+        # loop over current and previous backup levels
+        for test_level in range(backup_level + 1):
+            # do we need a backup of the tested backup level?
+            backup_needed = self._current_scheduled_backup(
+                point_in_time, test_level)
 
-            # otherwise, see whether we need a "diff" backup
-            diff = self._current_scheduled_backup(point_in_time, 'diff')
-
-            return diff
-        elif backup_level == 'incr':
-            # do we need a "full" backup?
-            full = self._current_scheduled_backup(point_in_time, 'full')
-            if (full is not None) and (last_existing < full[0]):
-                return full
-
-            # do we need a "diff" backup?
-            diff = self._current_scheduled_backup(point_in_time, 'diff')
-
-            if (diff is not None) and (last_existing < diff[0]):
-                return diff
-
-            # otherwise, see whether we need an "incr" backup
-            incr = self._current_scheduled_backup(point_in_time, 'incr')
-            return incr
+            # return result for current backup level
+            if test_level == backup_level:
+                return backup_needed
+            # return result if a backup is needed (otherwise, keep
+            # running...)
+            elif backup_needed.is_valid and \
+                    backup_needed.date > last_existing_date:
+                return backup_needed
 
 
     @lalikan.utilities.Memoized
     def next_scheduled_backup(self, point_in_time, backup_level):
+        """
+        Find next upcoming scheduled backup for a given backup level.
+
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :param backup_level:
+            backup level (0 to 2)
+        :type backup_level:
+            index
+
+        :returns:
+            next scheduled backup
+        :rtype:
+            lalikan.properties.BackupProperties
+
+        """
         # assert valid backup level
         self._check_backup_level(backup_level)
-
-        # find scheduled backups
-        scheduled_backups = self.calculate_backup_schedule(point_in_time)
-
-        # no backups were scheduled
-        if not scheduled_backups:
-            assert False, "this part of the code should never be reached!"
 
         # get backup levels that will be accepted as substitute for
         # given backup level
         accepted_levels = self._accepted_backup_levels(backup_level)
 
+        # find scheduled backups
+        scheduled_backups = self.calculate_backup_schedule(point_in_time)
+
+        # if the code functions as expected, there will always be one
+        # or more scheduled backups
+        assert scheduled_backups, 'no backups scheduled.  Sorry, this ' \
+            'should not have happened!'
+
         # loop over scheduled backups
-        for index in range(len(scheduled_backups)):
+        for scheduled_backup in scheduled_backups:
             # we found the next scheduled backup when the current one
-            # matches any of the accepted levels ...
-            if scheduled_backups[index][1] in accepted_levels:
-                next_backup = scheduled_backups[index][0]
-                backup_level = scheduled_backups[index][1]
+            # matches any of the accepted levels and lies in the future
+            if scheduled_backup.level in accepted_levels and \
+                    scheduled_backup.date > point_in_time:
+                return scheduled_backup
 
-                # ... and it lies in the future
-                if next_backup > point_in_time:
-                    return (next_backup, backup_level)
-
-        assert False, "this part of the code should never be reached!"
+        assert False, 'this part of the code should never be reached!'
 
 
     @lalikan.utilities.Memoized
     def days_overdue(self, point_in_time, backup_level):
+        """
+        Calculate number of days that a backup is due.
+
+        :param point_in_time:
+            given point in time
+        :type point_in_time:
+            :py:mod:`datetime.datetime`
+
+        :param backup_level:
+            backup level (0 to 2)
+        :type backup_level:
+            index
+
+        :returns:
+            days that have passed since a backup has become due
+            (positive numbers; backup is necessary) or that are left
+            until a backup will be due (negative numbers)
+        :rtype:
+            float
+
+        """
+        # calculate last scheduled backup
         last_scheduled = self.last_scheduled_backup(point_in_time, backup_level)
+
+        # find last existing backup
         last_existing = self.last_existing_backup(point_in_time, backup_level)
 
-        # no scheduled backup lies in the past
-        if last_scheduled is None:
-            next_scheduled = self.next_scheduled_backup(
-                point_in_time, backup_level)
-            calculation_base = next_scheduled[0]
-        # no backup of this level has been executed yet
-        elif last_existing is None:
-            calculation_base = last_scheduled[0]
-        # last backup of this level is older than scheduled backup
-        elif last_existing[0] < last_scheduled[0]:
-            calculation_base = last_scheduled[0]
-        # last executed backup is current
+        # calculate next upcoming scheduled backup
+        next_scheduled = self.next_scheduled_backup(point_in_time, backup_level)
+
+        # no scheduled backup lies in the past, so calculate time to
+        # the next upcoming one
+        if not last_scheduled.is_valid:
+            scheduled_backup = next_scheduled
+        # no backup of this level has been executed yet, so calculate
+        # time from the last existing backup
+        elif not last_existing.is_valid:
+            scheduled_backup = last_scheduled
+        # last backup of this level is older than scheduled backup, so
+        # calculate time from the last existing backup
+        elif last_existing.date < last_scheduled.date:
+            scheduled_backup = last_scheduled
+        # last executed backup is current, so calculate time to the
+        # next upcoming one
         else:
-            next_scheduled = self.next_scheduled_backup(
-                point_in_time, backup_level)
-            calculation_base = next_scheduled[0]
+            scheduled_backup = next_scheduled
 
-        # calculate fractional days since/until scheduled backup
-        days_overdue = point_in_time - calculation_base
-        days_overdue = days_overdue / datetime.timedelta(days=1)
+        # calculate days since/until scheduled backup (instance of
+        # datetime.timedelta)
+        timedelta_overdue = point_in_time - scheduled_backup.date
 
-        # negative numbers:  days since when backup level is overdue
-        # positive numbers:  days until the next scheduled backup
+        # convert datetime.timedelta to fractional days
+        days_overdue = timedelta_overdue / datetime.timedelta(days=1)
+
         return days_overdue
 
 
@@ -760,9 +796,10 @@ class BackupDatabase:
             Boolean
 
         :returns:
-            backup level when backup is needed, **None** otherwise
+            backup level when backup is needed ("-1" for forced backups)
+            and **None** otherwise
         :rtype:
-            String or None
+            integer or None
 
         """
         # check necessity of a backup for all backup levels
@@ -773,10 +810,10 @@ class BackupDatabase:
 
         # force backup, but only after schedule begins
         if force_backup and point_in_time >= self.start_time:
-            return 'forced'
+            return -1
+
         # no backup necessary
-        else:
-            return None
+        return None
 
 
     # method can't be memoized, since results depend on current
@@ -792,8 +829,8 @@ class BackupDatabase:
         :type path_name:
             String
 
-        :raises: :py:class:`ValueError`
-
+        :raises:
+            :py:class:`ValueError`
         :returns:
             sanitised path name
         :rtype:
@@ -829,47 +866,3 @@ class BackupDatabase:
             path_name = path_name.replace(os.sep, '/')
 
         return path_name
-
-
-    # ----- OLD CODE -----
-
-    def get_backup_reference(self, backup_level):
-        # assert valid backup level
-        self._check_backup_level(backup_level)
-
-        if backup_level == 'full':
-            reference_base = 'none'
-            reference_option = ''
-        elif backup_level == 'diff':
-            reference_base = self.name_of_last_backup('full')
-            reference_timestamp = reference_base.rsplit('-', 1)[0]
-            reference_catalog = '{0}-catalog'.format(reference_timestamp)
-
-            full_path = os.path.join(self.backup_directory,
-                                     reference_base, reference_catalog)
-            reference_option = '--ref ' + self.sanitise_path(full_path)
-        elif backup_level == 'incr':
-            last_full = self.days_since_last_backup('full')
-            last_diff = self.days_since_last_backup('diff')
-            last_incr = self.days_since_last_backup('incr')
-
-            newest_backup = 'full'
-            newest_age = last_full
-
-            if (last_diff >= 0) and (last_diff < newest_age):
-                newest_backup = 'diff'
-                newest_age = last_diff
-
-            if (last_incr >= 0) and (last_incr < newest_age):
-                newest_backup = 'incr'
-                newest_age = last_incr
-
-            reference_base = self.name_of_last_backup(newest_backup)
-            reference_timestamp = reference_base.rsplit('-', 1)[0]
-            reference_catalog = '{0}-catalog'.format(reference_timestamp)
-
-            full_path = os.path.join(self.backup_directory,
-                                     reference_base, reference_catalog)
-            reference_option = '--ref ' + self.sanitise_path(full_path)
-
-        return (reference_base, reference_option)

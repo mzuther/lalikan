@@ -26,6 +26,7 @@ import sys
 import unittest
 
 import lalikan.database
+from lalikan.properties import BackupProperties
 import lalikan.settings
 
 
@@ -55,7 +56,7 @@ class TestBackupDatabase(unittest.TestCase):
         self.__simulate_backup(backup_directory, '2012-01-04_0403', 'diff',
                                False, True)
 
-        for (timestamp, postfix) in faked_backups:
+        for timestamp, postfix in faked_backups:
             self.__simulate_backup(backup_directory, timestamp, postfix,
                                    True, True)
 
@@ -85,9 +86,8 @@ class TestBackupDatabase(unittest.TestCase):
         database = lalikan.database.BackupDatabase(
             self.settings, 'Test1')
 
-        database._check_backup_level('full')
-        database._check_backup_level('incr')
-        database._check_backup_level('diff')
+        for backup_level in range(3):
+            database._check_backup_level(backup_level)
 
         with self.assertRaises(ValueError):
             database._check_backup_level('incremental')
@@ -113,15 +113,15 @@ class TestBackupDatabase(unittest.TestCase):
 
         self.assertEqual(
             database.interval_full,
-            9.5)
+            datetime.timedelta(days=9, hours=12))
 
         self.assertEqual(
             database.interval_diff,
-            4.0)
+            datetime.timedelta(days=4, hours=0))
 
         self.assertEqual(
             database.interval_incr,
-            1.0)
+            datetime.timedelta(days=1, hours=0))
 
         self.assertEqual(
             database.postfix_full,
@@ -157,16 +157,16 @@ class TestBackupDatabase(unittest.TestCase):
             self.settings, 'Test1')
 
         self.assertEqual(
-            database._accepted_backup_levels('full'),
-            ['full'])
+            database._accepted_backup_levels(0),
+            (0, ))
 
         self.assertEqual(
-            database._accepted_backup_levels('diff'),
-            ['full', 'diff'])
+            database._accepted_backup_levels(1),
+            (0, 1))
 
         self.assertEqual(
-            database._accepted_backup_levels('incr'),
-            ['full', 'diff', 'incr'])
+            database._accepted_backup_levels(2),
+            (0, 1, 2))
 
 
     def __calculate_backup_schedule(self, database, current_datetime,
@@ -174,10 +174,10 @@ class TestBackupDatabase(unittest.TestCase):
         backup_schedule = database.calculate_backup_schedule(current_datetime)
 
         result = '\n'
-        for (start_time, backup_level) in backup_schedule:
-            result += '{backup_level}:  {start_time}\n'.format(
-                backup_level=backup_level,
-                start_time=start_time.strftime(self.format))
+        for backup in backup_schedule:
+            result += '{backup_suffix}:  {start_time}\n'.format(
+                backup_suffix=backup.suffix,
+                start_time=backup.date.strftime(self.format))
 
         self.assertEqual(result, expected_schedule)
 
@@ -277,15 +277,15 @@ full:  2012-01-20 20:00:00
 
         def assertLastScheduledBackups(now, full, diff, incr):
             self.assertEqual(
-                database.last_scheduled_backup(now, 'full'),
+                database.last_scheduled_backup(now, 0),
                 full)
 
             self.assertEqual(
-                database.last_scheduled_backup(now, 'diff'),
+                database.last_scheduled_backup(now, 1),
                 diff)
 
             self.assertEqual(
-                database.last_scheduled_backup(now, 'incr'),
+                database.last_scheduled_backup(now, 2),
                 incr)
 
 
@@ -308,9 +308,9 @@ full:  2012-01-01 20:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                None,
-                None,
-                None)
+                BackupProperties(None, 0),
+                BackupProperties(None, 1),
+                BackupProperties(None, 2))
 
 
             # exactly at first scheduled "full" backup
@@ -337,9 +337,9 @@ full:  2012-01-11 08:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'))
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0))
 
 
             # before first "diff" backup
@@ -369,9 +369,9 @@ full:  2012-01-11 08:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  4, 12, 48), 'incr'))
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  4, 12, 48), 2))
 
 
             # after first "diff" backup
@@ -398,9 +398,9 @@ full:  2012-01-11 08:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  5, 15, 12), 'diff'),
-                (datetime.datetime(2012,  1,  5, 15, 12), 'diff'))
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  5, 15, 12), 1),
+                BackupProperties(datetime.datetime(2012,  1,  5, 15, 12), 1))
 
 
             # two days later ...
@@ -430,9 +430,9 @@ full:  2012-01-11 08:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  5, 15, 12), 'diff'),
-                (datetime.datetime(2012,  1,  7, 10, 24), 'incr'))
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  5, 15, 12), 1),
+                BackupProperties(datetime.datetime(2012,  1,  7, 10, 24), 2))
 
 
             # just before second scheduled "full" backup
@@ -462,9 +462,9 @@ full:  2012-01-11 08:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1,  1, 20,  0), 'full'),
-                (datetime.datetime(2012,  1,  9, 10, 24), 'diff'),
-                (datetime.datetime(2012,  1, 11,  5, 36), 'incr'))
+                BackupProperties(datetime.datetime(2012,  1,  1, 20,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1,  9, 10, 24), 1),
+                BackupProperties(datetime.datetime(2012,  1, 11,  5, 36), 2))
 
 
             # exactly at second scheduled "full" backup
@@ -491,9 +491,9 @@ full:  2012-01-20 20:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1, 11,  8,  0), 'full'),
-                (datetime.datetime(2012,  1, 11,  8,  0), 'full'),
-                (datetime.datetime(2012,  1, 11,  8,  0), 'full'))
+                BackupProperties(datetime.datetime(2012,  1, 11,  8,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1, 11,  8,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1, 11,  8,  0), 0))
 
 
             # after second scheduled "full" backup
@@ -523,9 +523,9 @@ full:  2012-01-20 20:00:00
 
             assertLastScheduledBackups(
                 current_datetime,
-                (datetime.datetime(2012,  1, 11,  8,  0), 'full'),
-                (datetime.datetime(2012,  1, 11,  8,  0), 'full'),
-                (datetime.datetime(2012,  1, 12,  5, 36), 'incr'))
+                BackupProperties(datetime.datetime(2012,  1, 11,  8,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1, 11,  8,  0), 0),
+                BackupProperties(datetime.datetime(2012,  1, 12,  5, 36), 2))
 
         finally:
             shutil.rmtree(backup_directory)
@@ -546,15 +546,27 @@ full:  2012-01-20 20:00:00
 
             # valid (but faked) backups
             faked_backups = [
-                ('2012-01-02_0201', 'full'),
-                ('2012-01-03_2000', 'incr'),
-                ('2012-01-04_2134', 'incr'),
-                ('2012-01-05_2034', 'diff'),
-                ('2012-01-05_2134', 'incr'),
-                ('xxxx-xx-xx_xxxx', 'xxxx'),
+                BackupProperties(datetime.datetime(year=2012, month=1, day=2,
+                                                   hour=2, minute=1), 0),
+                BackupProperties(datetime.datetime(year=2012, month=1, day=3,
+                                                   hour=20, minute=0), 2),
+                BackupProperties(datetime.datetime(year=2012, month=1, day=4,
+                                                   hour=21, minute=34), 2),
+                BackupProperties(datetime.datetime(year=2012, month=1, day=5,
+                                                   hour=20, minute=34), 1),
+                BackupProperties(datetime.datetime(year=2012, month=1, day=5,
+                                                   hour=21, minute=34), 2),
             ]
 
-            self.__simulate_backups(database, backup_directory, faked_backups)
+            # faked directories in backup directory
+            faked_directories = []
+            for backup in faked_backups:
+                faked_directories.append((backup.date_string, backup.suffix))
+
+            faked_directories.append(('xxxx-xx-xx_xxxx', 'xxxx'))
+
+            self.__simulate_backups(
+                database, backup_directory, faked_directories)
 
             self.assertListEqual(
                 database.find_existing_backups(datetime.datetime(
@@ -604,17 +616,17 @@ full:  2012-01-20 20:00:00
 
         def assertLastExistingBackups(now, backup_full, backup_diff,
                                       backup_incr):
-            self.assertTupleEqual(
-                database.last_existing_backup(now, 'full'),
-                backup_full)
+            self.assertEqual(
+                database.last_existing_backup(now, 0),
+                BackupProperties(backup_full[0], backup_full[1]))
 
-            self.assertTupleEqual(
-                database.last_existing_backup(now, 'diff'),
-                backup_diff)
+            self.assertEqual(
+                database.last_existing_backup(now, 1),
+                BackupProperties(backup_diff[0], backup_diff[1]))
 
-            self.assertTupleEqual(
-                database.last_existing_backup(now, 'incr'),
-                backup_incr)
+            self.assertEqual(
+                database.last_existing_backup(now, 2),
+                BackupProperties(backup_incr[0], backup_incr[1]))
 
 
         database = lalikan.database.BackupDatabase(
@@ -640,64 +652,64 @@ full:  2012-01-20 20:00:00
                                     hour=2, minute=0)
 
             self.assertEqual(
-                database.last_existing_backup(now, 'full'),
-                None)
+                database.last_existing_backup(now, 0),
+                BackupProperties(None, 0))
 
             self.assertEqual(
-                database.last_existing_backup(now, 'diff'),
-                None)
+                database.last_existing_backup(now, 1),
+                BackupProperties(None, 1))
 
             self.assertEqual(
-                database.last_existing_backup(now, 'incr'),
-                None)
+                database.last_existing_backup(now, 2),
+                BackupProperties(None, 2))
 
 
             assertLastExistingBackups(
                 now=datetime.datetime(year=2012, month=1, day=2,
                                       hour=2, minute=1),
-                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_diff=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_incr=(datetime.datetime(2012,  1,  2,  2,  1), 'full'))
+                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_diff=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_incr=(datetime.datetime(2012,  1,  2,  2,  1), 0))
 
 
             assertLastExistingBackups(
                 now=datetime.datetime(year=2012, month=1, day=3,
                                       hour=20, minute=1),
-                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_diff=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_incr=(datetime.datetime(2012,  1,  3, 20,  0), 'incr'))
+                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_diff=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_incr=(datetime.datetime(2012,  1,  3, 20,  0), 2))
 
 
             assertLastExistingBackups(
                 now=datetime.datetime(year=2012, month=1, day=5,
                                       hour=6, minute=37),
-                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_diff=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_incr=(datetime.datetime(2012,  1,  4, 21, 34), 'incr'))
+                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_diff=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_incr=(datetime.datetime(2012,  1,  4, 21, 34), 2))
 
 
             assertLastExistingBackups(
                 now=datetime.datetime(year=2012, month=1, day=5,
                                       hour=20, minute=35),
-                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_diff=(datetime.datetime(2012,  1,  5, 20, 34), 'diff'),
-                backup_incr=(datetime.datetime(2012,  1,  5, 20, 34), 'diff'))
+                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_diff=(datetime.datetime(2012,  1,  5, 20, 34), 1),
+                backup_incr=(datetime.datetime(2012,  1,  5, 20, 34), 1))
 
 
             assertLastExistingBackups(
                 now=datetime.datetime(year=2012, month=1, day=5,
                                       hour=22, minute=14),
-                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_diff=(datetime.datetime(2012,  1,  5, 20, 34), 'diff'),
-                backup_incr=(datetime.datetime(2012,  1,  5, 21, 34), 'incr'))
+                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_diff=(datetime.datetime(2012,  1,  5, 20, 34), 1),
+                backup_incr=(datetime.datetime(2012,  1,  5, 21, 34), 2))
 
 
             assertLastExistingBackups(
                 now=datetime.datetime(year=2099, month=12, day=31,
                                       hour=23, minute=59),
-                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 'full'),
-                backup_diff=(datetime.datetime(2012,  1,  5, 20, 34), 'diff'),
-                backup_incr=(datetime.datetime(2012,  1,  5, 21, 34), 'incr'))
+                backup_full=(datetime.datetime(2012,  1,  2,  2,  1), 0),
+                backup_diff=(datetime.datetime(2012,  1,  5, 20, 34), 1),
+                backup_incr=(datetime.datetime(2012,  1,  5, 21, 34), 2))
 
         finally:
             shutil.rmtree(backup_directory)
@@ -707,15 +719,15 @@ full:  2012-01-20 20:00:00
 
         def assertDaysOverdue(now, delta_full, delta_diff, delta_incr):
             self.assertEqual(
-                database.days_overdue(now, 'full'),
+                database.days_overdue(now, 0),
                 delta_full / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue(now, 'diff'),
+                database.days_overdue(now, 1),
                 delta_diff / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue(now, 'incr'),
+                database.days_overdue(now, 2),
                 delta_incr / datetime.timedelta(days=1))
 
 
@@ -800,12 +812,12 @@ full:  2012-01-20 20:00:00
             # normal backup
             self.assertEqual(
                 database.backup_needed(now, False),
-                'full')
+                0)
 
             # backup forced when schedule begins
             self.assertEqual(
                 database.backup_needed(now, True),
-                'full')
+                0)
 
 
             """
@@ -838,12 +850,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'full')
+                0)
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'full')
+                0)
 
 
             """
@@ -882,7 +894,7 @@ full:  2012-01-20 20:00:00
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'forced')
+                -1)
 
 
             """
@@ -922,7 +934,7 @@ full:  2012-01-20 20:00:00
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'forced')
+                -1)
 
 
             """
@@ -956,12 +968,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'incr')
+                2)
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'incr')
+                2)
 
 
             """
@@ -996,12 +1008,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'diff')
+                1)
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'diff')
+                1)
 
 
             """
@@ -1041,7 +1053,7 @@ full:  2012-01-20 20:00:00
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'forced')
+                -1)
 
 
             """
@@ -1075,12 +1087,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'diff')
+                1)
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'diff')
+                1)
 
 
             """
@@ -1116,12 +1128,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'full')
+                0)
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'full')
+                0)
 
 
             """
@@ -1163,12 +1175,12 @@ full:  2012-01-20 20:00:00
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
                 database.backup_needed(now, False),
-                'diff')
+                1)
 
             # backup forced
             self.assertEqual(
                 database.backup_needed(now, True),
-                'diff')
+                1)
 
         finally:
             shutil.rmtree(backup_directory)

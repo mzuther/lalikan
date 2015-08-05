@@ -30,6 +30,7 @@ import unittest
 # available unit tests
 valid_tests = [
     'lalikan.unittest.database',
+    'lalikan.unittest.properties',
     'lalikan.unittest.settings',
 ]
 
