@@ -14,8 +14,8 @@ Submodules
 .. toctree::
 
    lalikan.database
+   lalikan.properties
    lalikan.settings
-   lalikan.utilities
 
 Module contents
 ---------------

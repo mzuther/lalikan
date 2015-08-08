@@ -7,6 +7,7 @@ Submodules
 .. toctree::
 
    lalikan.unittest.database
+   lalikan.unittest.properties
    lalikan.unittest.settings
 
 Module contents

@@ -571,6 +571,9 @@ full:  2012-01-20 20:00:00
             self.__simulate_backups(
                 database, backup_directory, faked_directories)
 
+            # force update of directory structure
+            database.clear_cache()
+
             self.assertListEqual(
                 database.find_existing_backups(datetime.datetime(
                         year=2012, month=1, day=2,

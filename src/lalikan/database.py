@@ -20,6 +20,7 @@
 # Thank you for using free software!
 
 import datetime
+import functools
 import gettext
 import os
 import re
@@ -73,6 +74,53 @@ class BackupDatabase:
         self.point_in_time = datetime.datetime.now()
 
 
+    def clear_cache(self):
+        """
+        Clear cached function return values.
+
+        """
+        self.__memoized = {}
+
+
+    def memoize_function(function):
+        """
+        Decorator for memoizing function return values.
+
+        **Caution: may only be used with class methods (automatically
+        binds first parameter to "self").  Also, "kwargs" parameters
+        are ignored.**
+
+        """
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            # caching of **kwargs arguments is not supported
+            if len(kwargs) > 0:
+                raise NotImplementedError('decorator @memoize_function does '
+                                          'not support **kwargs')
+
+            # bind first parameter to "self"
+            self = args[0]
+
+            # create dictionary key from function name
+            key = function.__name__
+
+            # add string representations function arguments to key
+            # (skip "self" though)
+            for arg in args[1:]:
+                key += '_' + repr(arg)
+
+            # try to return the cached function return value
+            try:
+                return self.__memoized[key]
+            # calculate and cache return value
+            except KeyError:
+                self.__memoized[key] = function(*args, **kwargs)
+                return self.__memoized[key]
+
+        # return decorated function
+        return wrapper
+
+
     @property
     def point_in_time(self):
         """
@@ -91,7 +139,11 @@ class BackupDatabase:
 
     @point_in_time.setter
     def point_in_time(self, time_point):
+        # update point in time
         self._point_in_time = time_point
+
+        # clear cached function return values
+        self.clear_cache()
 
 
     def _get_option(self, option_name, allow_empty=False):
@@ -438,6 +490,7 @@ class BackupDatabase:
         return schedule
 
 
+    @memoize_function
     def calculate_backup_schedule(self):
         """
         Calculate backup schedule, starting from the "full" backup prior to
@@ -588,7 +641,7 @@ class BackupDatabase:
             # store filtered backups
             existing_backups = temp
 
-        #return result
+        # return result
         return existing_backups
 
 
@@ -671,6 +724,7 @@ class BackupDatabase:
                 return backup_needed
 
 
+    @memoize_function
     def next_scheduled_backup(self, backup_level):
         """
         Find next upcoming scheduled backup for a given backup level.
