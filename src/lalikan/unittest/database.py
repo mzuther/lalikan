@@ -171,7 +171,8 @@ class TestBackupDatabase(unittest.TestCase):
 
     def __calculate_backup_schedule(self, database, current_datetime,
                                     expected_schedule):
-        backup_schedule = database.calculate_backup_schedule(current_datetime)
+        database.point_in_time = current_datetime
+        backup_schedule = database.calculate_backup_schedule()
 
         result = '\n'
         for backup in backup_schedule:
@@ -276,16 +277,18 @@ full:  2012-01-20 20:00:00
     def test_calculate_backup_schedule_2(self):
 
         def assertLastScheduledBackups(now, full, diff, incr):
+            database.point_in_time = now
+
             self.assertEqual(
-                database.last_scheduled_backup(now, 0),
+                database.last_scheduled_backup(0),
                 full)
 
             self.assertEqual(
-                database.last_scheduled_backup(now, 1),
+                database.last_scheduled_backup(1),
                 diff)
 
             self.assertEqual(
-                database.last_scheduled_backup(now, 2),
+                database.last_scheduled_backup(2),
                 incr)
 
 
@@ -616,16 +619,18 @@ full:  2012-01-20 20:00:00
 
         def assertLastExistingBackups(now, backup_full, backup_diff,
                                       backup_incr):
+            database.point_in_time = now
+
             self.assertEqual(
-                database.last_existing_backup(now, 0),
+                database.last_existing_backup(0),
                 BackupProperties(backup_full[0], backup_full[1]))
 
             self.assertEqual(
-                database.last_existing_backup(now, 1),
+                database.last_existing_backup(1),
                 BackupProperties(backup_diff[0], backup_diff[1]))
 
             self.assertEqual(
-                database.last_existing_backup(now, 2),
+                database.last_existing_backup(2),
                 BackupProperties(backup_incr[0], backup_incr[1]))
 
 
@@ -648,19 +653,20 @@ full:  2012-01-20 20:00:00
 
             self.__simulate_backups(database, backup_directory, faked_backups)
 
-            now = datetime.datetime(year=2012, month=1, day=2,
-                                    hour=2, minute=0)
+            database.point_in_time = datetime.datetime(
+                year=2012, month=1, day=2,
+                hour=2, minute=0)
 
             self.assertEqual(
-                database.last_existing_backup(now, 0),
+                database.last_existing_backup(0),
                 BackupProperties(None, 0))
 
             self.assertEqual(
-                database.last_existing_backup(now, 1),
+                database.last_existing_backup(1),
                 BackupProperties(None, 1))
 
             self.assertEqual(
-                database.last_existing_backup(now, 2),
+                database.last_existing_backup(2),
                 BackupProperties(None, 2))
 
 
@@ -718,16 +724,18 @@ full:  2012-01-20 20:00:00
     def test_backup_needed(self):
 
         def assertDaysOverdue(now, delta_full, delta_diff, delta_incr):
+            database.point_in_time = now
+
             self.assertEqual(
-                database.days_overdue(now, 0),
+                database.days_overdue(0),
                 delta_full / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue(now, 1),
+                database.days_overdue(1),
                 delta_diff / datetime.timedelta(days=1))
 
             self.assertEqual(
-                database.days_overdue(now, 2),
+                database.days_overdue(2),
                 delta_incr / datetime.timedelta(days=1))
 
 
@@ -775,12 +783,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 None)
 
             # backup forced before schedule begins
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 None)
 
 
@@ -811,12 +819,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 0)
 
             # backup forced when schedule begins
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 0)
 
 
@@ -849,12 +857,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 0)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 0)
 
 
@@ -888,12 +896,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 None)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 -1)
 
 
@@ -928,12 +936,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 None)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 -1)
 
 
@@ -967,12 +975,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 2)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 2)
 
 
@@ -1007,12 +1015,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 1)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 1)
 
 
@@ -1047,12 +1055,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 None)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 -1)
 
 
@@ -1086,12 +1094,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 1)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 1)
 
 
@@ -1127,12 +1135,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 0)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 0)
 
 
@@ -1174,12 +1182,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(now, False),
+                database.backup_needed(False),
                 1)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(now, True),
+                database.backup_needed(True),
                 1)
 
         finally:

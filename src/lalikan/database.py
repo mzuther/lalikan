@@ -26,7 +26,6 @@ import re
 import sys
 
 import lalikan.properties
-import lalikan.utilities
 
 # initialise localisation settings
 module_path = os.path.dirname(os.path.realpath(__file__))
@@ -69,6 +68,30 @@ class BackupDatabase:
 
         # backup file name postfixes time for all backup levels
         self._postfixes = ('full', 'diff', 'incr')
+
+        # set point in time to current date and time
+        self.point_in_time = datetime.datetime.now()
+
+
+    @property
+    def point_in_time(self):
+        """
+        Attribute (read/write): point in time to which all backup
+        operations relate.  When an instance of this class is created,
+        this is set to the current date and time.
+
+        :returns:
+            point in time
+        :rtype:
+            :py:mod:`datetime.datetime`
+
+        """
+        return self._point_in_time
+
+
+    @point_in_time.setter
+    def point_in_time(self, time_point):
+        self._point_in_time = time_point
 
 
     def _get_option(self, option_name, allow_empty=False):
@@ -224,7 +247,6 @@ class BackupDatabase:
 
 
     @property
-    @lalikan.utilities.Memoized
     def start_time(self):
         """
         Attribute: start time of first backup (such as "2012-12-31_2100").
@@ -416,16 +438,10 @@ class BackupDatabase:
         return schedule
 
 
-    @lalikan.utilities.Memoized
-    def calculate_backup_schedule(self, point_in_time):
+    def calculate_backup_schedule(self):
         """
         Calculate backup schedule, starting from the "full" backup prior to
-        the given point in time and ending with the next one.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
+        self.point_in_time and ending with the next one.
 
         :returns:
             backup schedule
@@ -435,7 +451,7 @@ class BackupDatabase:
         """
         # calculate first "full" backup after the given date
         current_start_time = self.start_time
-        while current_start_time <= point_in_time:
+        while current_start_time <= self.point_in_time:
             current_start_time += self.interval_full
 
         # store upcoming "full" backup
@@ -466,15 +482,9 @@ class BackupDatabase:
         return schedule
 
 
-    @lalikan.utilities.Memoized
-    def _current_scheduled_backup(self, point_in_time, backup_level):
+    def _current_scheduled_backup(self, backup_level):
         """
         Find current scheduled backup for a given backup level.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
 
         :param backup_level:
             backup level (0 to 2)
@@ -488,7 +498,7 @@ class BackupDatabase:
 
         """
         # find scheduled backups
-        schedule = self.calculate_backup_schedule(point_in_time)
+        schedule = self.calculate_backup_schedule()
 
         # get backup levels that will be accepted as substitute for
         # given backup level
@@ -500,7 +510,7 @@ class BackupDatabase:
             # any of the accepted levels ...
             if backup.level in accepted_levels:
                 # ... and it doesn't lie in the future
-                if backup.date <= point_in_time:
+                if backup.date <= self.point_in_time:
                     return backup
 
         # no matching scheduled backup found
@@ -582,15 +592,9 @@ class BackupDatabase:
         return existing_backups
 
 
-    @lalikan.utilities.Memoized
-    def last_existing_backup(self, point_in_time, backup_level):
+    def last_existing_backup(self, backup_level):
         """
         Find last existing backup for a given backup level.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
 
         :param backup_level:
             backup level (0 to 2)
@@ -604,7 +608,7 @@ class BackupDatabase:
 
         """
         # find existing backups prior to (or exactly at) given date
-        existing_backups = self.find_existing_backups(point_in_time)
+        existing_backups = self.find_existing_backups(self.point_in_time)
 
         # no backups were found
         if len(existing_backups) == 0:
@@ -625,15 +629,9 @@ class BackupDatabase:
         return lalikan.properties.BackupProperties(None, backup_level)
 
 
-    @lalikan.utilities.Memoized
-    def last_scheduled_backup(self, point_in_time, backup_level):
+    def last_scheduled_backup(self, backup_level):
         """
         Find last scheduled backup for a given backup level.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
 
         :param backup_level:
             backup level (0 to 2)
@@ -650,7 +648,7 @@ class BackupDatabase:
         self._check_backup_level(backup_level)
 
         # get date of last existing backup of given (or lower) level
-        last_existing = self.last_existing_backup(point_in_time, backup_level)
+        last_existing = self.last_existing_backup(backup_level)
         last_existing_date = last_existing.date
 
         # if this fails, use date of the Epoch so that comparisons
@@ -661,8 +659,7 @@ class BackupDatabase:
         # loop over current and previous backup levels
         for test_level in range(backup_level + 1):
             # do we need a backup of the tested backup level?
-            backup_needed = self._current_scheduled_backup(
-                point_in_time, test_level)
+            backup_needed = self._current_scheduled_backup(test_level)
 
             # return result for current backup level
             if test_level == backup_level:
@@ -674,15 +671,9 @@ class BackupDatabase:
                 return backup_needed
 
 
-    @lalikan.utilities.Memoized
-    def next_scheduled_backup(self, point_in_time, backup_level):
+    def next_scheduled_backup(self, backup_level):
         """
         Find next upcoming scheduled backup for a given backup level.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
 
         :param backup_level:
             backup level (0 to 2)
@@ -703,7 +694,7 @@ class BackupDatabase:
         accepted_levels = self._accepted_backup_levels(backup_level)
 
         # find scheduled backups
-        scheduled_backups = self.calculate_backup_schedule(point_in_time)
+        scheduled_backups = self.calculate_backup_schedule()
 
         # if the code functions as expected, there will always be one
         # or more scheduled backups
@@ -715,21 +706,15 @@ class BackupDatabase:
             # we found the next scheduled backup when the current one
             # matches any of the accepted levels and lies in the future
             if scheduled_backup.level in accepted_levels and \
-                    scheduled_backup.date > point_in_time:
+                    scheduled_backup.date > self.point_in_time:
                 return scheduled_backup
 
         assert False, 'this part of the code should never be reached!'
 
 
-    @lalikan.utilities.Memoized
-    def days_overdue(self, point_in_time, backup_level):
+    def days_overdue(self, backup_level):
         """
         Calculate number of days that a backup is due.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
 
         :param backup_level:
             backup level (0 to 2)
@@ -745,13 +730,13 @@ class BackupDatabase:
 
         """
         # calculate last scheduled backup
-        last_scheduled = self.last_scheduled_backup(point_in_time, backup_level)
+        last_scheduled = self.last_scheduled_backup(backup_level)
 
         # find last existing backup
-        last_existing = self.last_existing_backup(point_in_time, backup_level)
+        last_existing = self.last_existing_backup(backup_level)
 
         # calculate next upcoming scheduled backup
-        next_scheduled = self.next_scheduled_backup(point_in_time, backup_level)
+        next_scheduled = self.next_scheduled_backup(backup_level)
 
         # no scheduled backup lies in the past, so calculate time to
         # the next upcoming one
@@ -772,7 +757,7 @@ class BackupDatabase:
 
         # calculate days since/until scheduled backup (instance of
         # datetime.timedelta)
-        timedelta_overdue = point_in_time - scheduled_backup.date
+        timedelta_overdue = self.point_in_time - scheduled_backup.date
 
         # convert datetime.timedelta to fractional days
         days_overdue = timedelta_overdue / datetime.timedelta(days=1)
@@ -780,15 +765,9 @@ class BackupDatabase:
         return days_overdue
 
 
-    @lalikan.utilities.Memoized
-    def backup_needed(self, point_in_time, force_backup):
+    def backup_needed(self, force_backup):
         """
-        Find out whether a backup is necessary for a given point in time.
-
-        :param point_in_time:
-            given point in time
-        :type point_in_time:
-            :py:mod:`datetime.datetime`
+        Find out whether a backup is necessary for self.point_in_time.
 
         :param force_backup:
             **True** forces a backup
@@ -805,19 +784,17 @@ class BackupDatabase:
         # check necessity of a backup for all backup levels
         for level in self._backup_levels:
             # a backup of this level is necessary
-            if self.days_overdue(point_in_time, level) >= 0.0:
+            if self.days_overdue(level) >= 0.0:
                 return level
 
         # force backup, but only after schedule begins
-        if force_backup and point_in_time >= self.start_time:
+        if force_backup and self.point_in_time >= self.start_time:
             return -1
 
         # no backup necessary
         return None
 
 
-    # method can't be memoized, since results depend on current
-    # working directory!
     def sanitise_path(self, path_name):
         """
         Return a normalised absolutised version of the specified path name.

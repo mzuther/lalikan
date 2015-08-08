@@ -74,7 +74,7 @@ class BackupProperties:
         String representation of class instance.
 
         """
-        return 'BackupProperties({0}, {1})'.format(self.date, self.level)
+        return 'BackupProperties({0}, {1})'.format(self.date, self.suffix)
 
 
     def __eq__(self, other):
