@@ -98,6 +98,18 @@ class TestBackupDatabase(unittest.TestCase):
         with self.assertRaises(ValueError):
             database._check_backup_level('XXXX')
 
+        check_level_names = {
+            None: 'none',
+            -1: 'forced incremental',
+            0: 'full',
+            1: 'differential',
+            2: 'incremental'}
+
+        for backup_level in check_level_names:
+            self.assertEqual(
+                database.get_level_name(backup_level),
+                check_level_names[backup_level])
+
 
     def test_get_settings(self):
         database = lalikan.database.BackupDatabase(
@@ -113,15 +125,15 @@ class TestBackupDatabase(unittest.TestCase):
 
         self.assertEqual(
             database.interval_full,
-            datetime.timedelta(days=9, hours=12))
+            9.5)
 
         self.assertEqual(
             database.interval_diff,
-            datetime.timedelta(days=4, hours=0))
+            4.0)
 
         self.assertEqual(
             database.interval_incr,
-            datetime.timedelta(days=1, hours=0))
+            1.0)
 
         self.assertEqual(
             database.postfix_full,

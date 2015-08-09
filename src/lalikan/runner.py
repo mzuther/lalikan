@@ -63,42 +63,67 @@ class BackupRunner:
     """
     def __init__(self, settings, section, force_backup):
         self.section = section
-        self.db = lalikan.database.BackupDatabase(settings, self.section)
+        self._database = lalikan.database.BackupDatabase(settings, self.section)
 
-        return  # DEBUG
+        self.execute_command('pre-run command', self.pre_run_command)
 
+        # recursively create root directory if it doesn't exist
+        if not os.path.exists(self._database.backup_directory):
+            os.makedirs(self._database.backup_directory)
 
-        self.pre_run()
+        self._remove_empty_directories()
 
-        need_backup = 'none'
+        backup_needed = None
+
         try:
-            need_backup = self.db.need_backup(force_backup)
+            print()
+            print('next full in  {:8.3f} days  ({:8.3f})'.format(
+                -self._database.days_overdue(0),
+                self._database.interval_full))
 
-            print('\nnext full in  %7.3f days  (%7.3f)' % \
-                (self.db.days_to_next_backup_due_date('full'),
-                 self.db.interval_full))
-            print('next diff in  %7.3f days  (%7.3f)' % \
-                (self.db.days_to_next_backup_due_date('diff'),
-                 self.db.interval_diff))
-            print('next incr in  %7.3f days  (%7.3f)\n' % \
-                (self.db.days_to_next_backup_due_date('incr'),
-                 self.db.interval_incr))
+            print('next diff in  {:8.3f} days  ({:8.3f})'.format(
+                -self._database.days_overdue(1),
+                self._database.interval_diff))
 
-            print('backup type:  %s\n' % need_backup)
+            print('next incr in  {:8.3f} days  ({:8.3f})'.format(
+                -self._database.days_overdue(2),
+                self._database.interval_incr))
 
-            if need_backup == 'none':
-                return False
-            elif need_backup == 'incr (forced)':
-                need_backup = 'incr'
+            backup_needed = self._database.backup_needed(force_backup)
+            level_name = self.get_level_name(backup_needed)
 
-            self.notify_user('Starting %s backup...' % need_backup,
+            print()
+            print('backup type:  ' + level_name)
+            print()
+
+            if backup_needed is None:
+                return
+            elif backup_needed < 0:
+                backup_needed = 2
+
+            self.notify_user('Creating {} backup...'.format(level_name),
                              self.INFORMATION)
 
-            self.create_backup(need_backup)
-        finally:
-            self.post_run(need_backup)
+            self.create_backup(backup_needed)
 
-        return True
+            self.notify_user('Finished.', self.INFORMATION)
+        finally:
+            self.execute_command('post-run command', self.post_run_command)
+            print('---')
+
+
+    @property
+    def pre_run_command(self):
+        return self._database.pre_run_command
+
+
+    @property
+    def post_run_command(self):
+        return self._database.post_run_command
+
+
+    def get_level_name(self, backup_level):
+        return self._database.get_level_name(backup_level)
 
 
     def _remove_empty_directories(self):
@@ -120,9 +145,9 @@ class BackupRunner:
 
             # find empty directories
             for root, directories, files in os.walk(
-                    self.db.backup_directory, topdown=False):
+                    self._database.backup_directory, topdown=False):
                # do not remove root directory
-                if root != self.db.backup_directory:
+                if root != self._database.backup_directory:
                     # directory is empty
                     if (len(directories) < 1) and (len(files) < 1):
                         # keep looping to find *all* empty directories
@@ -133,71 +158,54 @@ class BackupRunner:
                         os.rmdir(root)
 
 
-    def pre_run(self):
-        if self.db.pre_run_command:
-            print('pre-run command: %s' % self.db.pre_run_command)
-            # stdin is needed to be able to communicate with the
-            # application (i.e. answer a question)
-            proc = subprocess.Popen(
-                self.db.pre_run_command, shell=True,
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+    def execute_command(self, message, command):
+        if not command:
+            return
 
-            output = proc.communicate()
-            if output[0]:
-                self.notify_user(output[0], self.INFORMATION)
-            if output[1]:
-                self.notify_user(output[1], self.ERROR)
+        print('{}:  {}'.format(message, command))
 
-        # recursively create root directory if it doesn't exist
-        if not os.path.exists(self.db.backup_directory):
-            os.makedirs(self.db.backup_directory)
+        # stdin is needed to be able to communicate with the
+        # application (i.e. answer a question)
+        proc = subprocess.Popen(
+            command,
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
 
-        self._remove_empty_directories()
+        output = proc.communicate()
 
+        # notify user of possible output on stdin
+        self.notify_user(output[0], self.INFORMATION)
 
-    def post_run(self, need_backup):
-        if self.db.post_run_command:
-            print('post-run command: %s' % \
-                self.db.post_run_command)
-            proc = subprocess.Popen(
-                self.db.post_run_command, shell=True,
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-
-            output = proc.communicate()
-            if output[0]:
-                self.notify_user(output[0], self.INFORMATION)
-            if output[1]:
-                self.notify_user(output[1], self.ERROR)
-
-        if need_backup != 'none':
-            self.notify_user('Finished backup.', self.INFORMATION)
-
-        print('---')
+        # notify user of possible output on sterr
+        self.notify_user(output[1], self.ERROR)
 
 
     def create_backup(self, backup_type):
         print()
-        self.db.check_backup_type(backup_type)
+
+        return  # DEBUG
+
+        self._database.check_backup_type(backup_type)
 
         if backup_type == 'full':
-            postfix = self.db.postfix_full
+            postfix = self._database.postfix_full
             reference_base = 'none'
             reference_option = ''
         elif backup_type == 'diff':
-            postfix = self.db.postfix_diff
-            reference_base = self.db.name_of_last_backup('full')
+            postfix = self._database.postfix_diff
+            reference_base = self._database.name_of_last_backup('full')
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
-                self.db.backup_directory, reference_base,
+                self._database.backup_directory, reference_base,
                 reference_catalog))
         elif backup_type == 'incr':
-            postfix = self.db.postfix_incr
-            last_full = self.db.days_since_last_backup('full')
-            last_diff = self.db.days_since_last_backup('diff')
-            last_incr = self.db.days_since_last_backup('incr')
+            postfix = self._database.postfix_incr
+            last_full = self._database.days_since_last_backup('full')
+            last_diff = self._database.days_since_last_backup('diff')
+            last_incr = self._database.days_since_last_backup('incr')
 
             newest_backup = 'full'
             newest_age = last_full
@@ -210,18 +218,18 @@ class BackupRunner:
                 newest_backup = 'incr'
                 newest_age = last_incr
 
-            reference_base = self.db.name_of_last_backup(newest_backup)
+            reference_base = self._database.name_of_last_backup(newest_backup)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
-                self.db.backup_directory, reference_base,
+                self._database.backup_directory, reference_base,
                 reference_catalog))
 
         now = datetime.datetime.now()
 
-        timestamp = now.strftime(self.db.date_format)
+        timestamp = now.strftime(self._database.date_format)
         base_name = '%s-%s' % (timestamp, postfix)
-        base_directory = os.path.join(self.db.backup_directory, base_name)
+        base_directory = os.path.join(self._database.backup_directory, base_name)
         base_file = os.path.join(base_directory, base_name)
         catalog_name = '%s-%s' % (timestamp, "catalog")
         catalog_file = os.path.join(base_directory, catalog_name)
@@ -231,10 +239,10 @@ class BackupRunner:
         os.mkdir(base_directory)
 
         cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
-              {'dar': self.db.dar_path,
+              {'dar': self._database.dar_path,
                'base': self.sanitise_path(base_file),
                'reference': reference_option,
-               'options': self.db.dar_options}
+               'options': self._database.dar_options}
 
         print('creating backup: %s\n' % cmd)
         proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -257,10 +265,10 @@ class BackupRunner:
 
         # isolate catalog
         cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
-              {'dar': self.db.dar_path,
+              {'dar': self._database.dar_path,
                'base': self.sanitise_path(catalog_file),
                'reference': self.sanitise_path(base_file),
-               'options': self.db.dar_options}
+               'options': self._database.dar_options}
 
         print('isolating catalog: %s\n' % cmd)
         proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
@@ -280,16 +288,16 @@ class BackupRunner:
 
 
     def _delete_old_backups(self, backup_type):
-        self.db.check_backup_type(backup_type)
+        self._database.check_backup_type(backup_type)
 
         if backup_type == 'full':
-            postfix = self.db.postfix_full
+            postfix = self._database.postfix_full
         elif backup_type == 'diff':
-            postfix = self.db.postfix_diff
+            postfix = self._database.postfix_diff
         elif backup_type == 'incr':
-            postfix = self.db.postfix_incr
+            postfix = self._database.postfix_incr
 
-        remove_prior = self.db.find_old_backups(backup_type, None)
+        remove_prior = self._database.find_old_backups(backup_type, None)
         if len (remove_prior) < 2:
             return
         else:
@@ -297,23 +305,23 @@ class BackupRunner:
             prior_date = remove_prior[-2]
             prior_date = prior_date[:-len(postfix) - 1]
             prior_date = datetime.datetime.strptime(
-                prior_date, self.db.date_format)
+                prior_date, self._database.date_format)
 
         # please remember: never delete full backups!
         if backup_type == 'full':
             print('\nfull: removing diff and incr prior to last full (%s)\n' % \
                 prior_date)
 
-            for basename in self.db.find_old_backups(
+            for basename in self._database.find_old_backups(
                     'incr', prior_date):
                 self._delete_backup(basename)
-            for basename in self.db.find_old_backups(
+            for basename in self._database.find_old_backups(
                     'diff', prior_date):
                 self._delete_backup(basename)
 
             # separate check for old "diff" backups
-            postfix_diff = self.db.postfix_diff
-            remove_prior_diff = self.db.find_old_backups(
+            postfix_diff = self._database.postfix_diff
+            remove_prior_diff = self._database.find_old_backups(
                 'diff', None)
 
             if (len (remove_prior) > 1) and (len(remove_prior_diff) > 0):
@@ -321,18 +329,18 @@ class BackupRunner:
                 last_full_date = remove_prior[-1]
                 last_full_date = last_full_date[:-len(postfix) - 1]
                 last_full_date = datetime.datetime.strptime(
-                    last_full_date, self.db.date_format)
+                    last_full_date, self._database.date_format)
 
                 # get date of last "diff" backup
                 last_diff_date = remove_prior_diff[-1]
                 last_diff_date = last_diff_date[:-len(postfix_diff) - 1]
                 last_diff_date = datetime.datetime.strptime(
-                    last_diff_date, self.db.date_format)
+                    last_diff_date, self._database.date_format)
 
                 print('\nfull: removing incr prior to last diff (%s)\n' % \
                     last_diff_date)
 
-                for basename in self.db.find_old_backups(
+                for basename in self._database.find_old_backups(
                         'incr', last_diff_date):
                     self._delete_backup(basename)
 
@@ -340,7 +348,7 @@ class BackupRunner:
             print('\ndiff: removing incr prior to last diff (%s)\n' % \
                 prior_date)
 
-            for basename in self.db.find_old_backups(
+            for basename in self._database.find_old_backups(
                     'incr', prior_date):
                 self._delete_backup(basename)
         elif backup_type == 'incr':
@@ -352,7 +360,7 @@ class BackupRunner:
     def _delete_backup(self, basename):
         print('deleting old backup "%s"' % basename)
 
-        base_directory = os.path.join(self.db.backup_directory, basename)
+        base_directory = os.path.join(self._database.backup_directory, basename)
         for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
             os.unlink(backup_file)
         for checksum_file in glob.glob(os.path.join(base_directory, '*.dar.md5')):
@@ -383,10 +391,13 @@ class BackupRunner:
 
 
     def sanitise_path(self, path):
-        return self.db.sanitise_path(path)
+        return self._database.sanitise_path(path)
 
 
     def notify_user(self, message, urgency):
+        if not message:
+            return
+
         assert(urgency in (self.INFORMATION, self.WARNING, self.ERROR,
                            self.FINAL_ERROR))
 

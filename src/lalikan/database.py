@@ -215,8 +215,8 @@ class BackupDatabase:
             :py:mod:`datetime.timedelta`
 
         """
-        interval = float(self._get_option('interval_full'))
-        return datetime.timedelta(interval)
+        interval = self._get_option('interval_full')
+        return float(interval)
 
 
     @property
@@ -230,8 +230,8 @@ class BackupDatabase:
             :py:mod:`datetime.timedelta`
 
         """
-        interval = float(self._get_option('interval_diff'))
-        return datetime.timedelta(interval)
+        interval = self._get_option('interval_diff')
+        return float(interval)
 
 
     @property
@@ -245,8 +245,8 @@ class BackupDatabase:
             :py:mod:`datetime.timedelta`
 
         """
-        interval = float(self._get_option('interval_incr'))
-        return datetime.timedelta(interval)
+        interval = self._get_option('interval_incr')
+        return float(interval)
 
 
     @property
@@ -375,6 +375,29 @@ class BackupDatabase:
         return self._get_option('command_post_run', True)
 
 
+    def get_level_name(self, backup_level):
+        """
+        Get name for given backup level.
+
+        :param backup_level:
+            backup level (-1 to 2 or None)
+        :type backup_level:
+            integer
+
+        :returns:
+            name for backup level
+        :rtype:
+            String
+
+        """
+        if backup_level is None:
+            return 'none'
+        elif backup_level < 0:
+            return 'forced incremental'
+        else:
+            return ('full', 'differential', 'incremental')[backup_level]
+
+
     def _accepted_backup_levels(self, backup_level):
         """
         Get backup levels that will be accepted as substitute for given
@@ -441,9 +464,9 @@ class BackupDatabase:
         """
         # check backup level
         if backup_level == 1:
-            interval = self.interval_diff
+            interval = datetime.timedelta(self.interval_diff)
         elif backup_level == 2:
-            interval = self.interval_incr
+            interval = datetime.timedelta(self.interval_incr)
         else:
             raise ValueError(
                 'wrong backup level given ("{0}")'.format(backup_level))
@@ -495,10 +518,13 @@ class BackupDatabase:
             list of lalikan.properties.BackupProperties
 
         """
+        # get interval for full backup
+        interval_full = datetime.timedelta(self.interval_full)
+
         # calculate first "full" backup after the given date
         current_start_time = self.start_time
         while current_start_time <= self.point_in_time:
-            current_start_time += self.interval_full
+            current_start_time += interval_full
 
         # store upcoming "full" backup
         new_backup = lalikan.properties.BackupProperties(
@@ -506,7 +532,7 @@ class BackupDatabase:
         schedule = [new_backup]
 
         # calculate previous "full" backup
-        current_start_time -= self.interval_full
+        current_start_time -= interval_full
 
         # store previous "full" backup (if valid)
         if current_start_time >= self.start_time:
