@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,14 +20,6 @@
 # Thank you for using free software!
 
 import configparser
-import gettext
-import os
-
-# initialise localisation settings
-module_path = os.path.dirname(os.path.realpath(__file__))
-gettext.bindtextdomain('Lalikan', os.path.join(module_path, 'po/'))
-gettext.textdomain('Lalikan')
-_ = gettext.lgettext
 
 
 class Settings:
@@ -48,8 +40,8 @@ class Settings:
         self._cmd_line = 'Lalikan'
         self._version = '0.17'
         self._years = '2010-2015'
-        self._authors = 'Martin Zuther'
-        self._license_short = 'GPL version 3 (or later)'
+        self._authors = 'Dr. Martin Zuther'
+        self._license_short = 'Licenced under the GPL version 3 (or later).'
         self._license_long = """This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -64,7 +56,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Thank you for using free software!"""
-        self._description = _('Backup scheduler for Disk ARchive (DAR)')
+        self._description = 'Backup scheduler for Disk ARchive (DAR).'
 
         # parse config file
         with open(config_filename, 'rt', encoding='utf-8') as infile:
@@ -189,33 +181,35 @@ Thank you for using free software!"""
         return eval('self._{0}'.format(option))
 
 
-    def get_description(self, long_description, application_name=None):
-        """Return application description as string.
+    def get_name_and_version(self, application_name=None):
+        """Return application version as string.
 
         Keyword arguments:
-        long_description -- Boolean indication whether to output long
-        version of description
         application_name -- optional string holding the application's
         name (defaults to application name set in this file)
 
         Return value:
-        Formatted string containing application description
+        Formatted string containing application version
 
         """
         if application_name is None:
             application_name = self.get_option('application')
 
-        description = '{application} v{version}'.format(
+        version = '{application} {version}'.format(
             application=application_name,
             version=self.get_option('version'))
 
-        description += '\n' + '=' * len(description)
+        return version
 
-        if long_description:
-            description += '\n{description}'.format(
-                description=self.get_option('description'))
 
-        return description
+    def get_description(self):
+        """Return application description as string.
+
+        Return value:
+        Formatted string containing application description
+
+        """
+        return self.get_option('description')
 
 
     def get_copyrights(self):
@@ -228,7 +222,7 @@ Thank you for using free software!"""
         Formatted string containing application copyrights
 
         """
-        return '(c) {years} {authors}'.format(
+        return 'Copyright (c) {years} {authors}'.format(
             years=self.get_option('years'),
             authors=self.get_option('authors'))
 

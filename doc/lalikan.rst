@@ -15,6 +15,7 @@ Submodules
 
    lalikan.database
    lalikan.properties
+   lalikan.runner
    lalikan.settings
 
 Module contents

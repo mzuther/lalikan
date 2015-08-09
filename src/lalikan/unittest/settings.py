@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ class TestSettings(unittest.TestCase):
 
         self.assertEqual(
             self.settings.get_option('authors'),
-            'Martin Zuther')
+            'Dr. Martin Zuther')
 
         with self.assertRaises(ValueError):
             self.settings.get_option('XXXlication')
@@ -111,24 +111,27 @@ class TestSettings(unittest.TestCase):
 
     def test_get_description(self):
         self.assertEqual(
-            self.settings.get_description(False),
-            'Lalikan.py v{0}\n================'.format(self.version))
+            self.settings.get_description(),
+            'Backup scheduler for Disk ARchive (DAR).')
 
+
+    def test_get_name_and_version(self):
         self.assertEqual(
-            self.settings.get_description(True),
-            'Lalikan.py v{0}\n================\nBackup scheduler for Disk ARchive (DAR)'.format(self.version))
+            self.settings.get_name_and_version(),
+            'Lalikan.py {}'.format(self.version))
 
 
     def test_get_copyrights(self):
         self.assertEqual(
             self.settings.get_copyrights(),
-            '(c) 2010-{0} Martin Zuther'.format(self.copyright_year))
+            'Copyright (c) 2010-{0} Dr. Martin Zuther'.format(
+                self.copyright_year))
 
 
     def test_get_license(self):
         self.assertEqual(
             self.settings.get_license(False),
-            'GPL version 3 (or later)')
+            'Licenced under the GPL version 3 (or later).')
 
         self.assertEqual(
             self.settings.get_license(True),

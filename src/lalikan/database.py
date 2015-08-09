@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2015 Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,18 +21,11 @@
 
 import datetime
 import functools
-import gettext
 import os
 import re
 import sys
 
 import lalikan.properties
-
-# initialise localisation settings
-module_path = os.path.dirname(os.path.realpath(__file__))
-gettext.bindtextdomain('Lalikan', os.path.join(module_path, 'po/'))
-gettext.textdomain('Lalikan')
-_ = gettext.lgettext
 
 
 class BackupDatabase:
