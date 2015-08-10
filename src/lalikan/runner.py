@@ -65,50 +65,67 @@ class BackupRunner:
         self.section = section
         self._database = lalikan.database.BackupDatabase(settings, self.section)
 
-        self.execute_command('pre-run command', self.pre_run_command)
-
-        # recursively create root directory if it doesn't exist
-        if not os.path.exists(self._database.backup_directory):
-            os.makedirs(self._database.backup_directory)
-
-        self._remove_empty_directories()
-
-        backup_needed = None
-
         try:
+            # execute pre-run command
+            self.execute_command('pre-run command', self.pre_run_command)
+
+            # if necessary, recursively create backup root directory
+            if not os.path.exists(self._database.backup_directory):
+                os.makedirs(self._database.backup_directory)
+
+            # remove empty directories in backup root directory
+            self._remove_empty_directories()
+
+            # display time to next scheduled full backup
             print()
             print('next full in  {:8.3f} days  ({:8.3f})'.format(
                 -self._database.days_overdue(0),
                 self._database.interval_full))
 
+            # display time to next scheduled differential backup
             print('next diff in  {:8.3f} days  ({:8.3f})'.format(
                 -self._database.days_overdue(1),
                 self._database.interval_diff))
 
+            # display time to next scheduled incremental backup
             print('next incr in  {:8.3f} days  ({:8.3f})'.format(
                 -self._database.days_overdue(2),
                 self._database.interval_incr))
 
+            # check whether a backup is necessary
             backup_needed = self._database.backup_needed(force_backup)
+
+            # translate backup level to readable name
+            # (i.e. "incremental")
             level_name = self.get_level_name(backup_needed)
 
+            # display backup level name
             print()
             print('backup type:  ' + level_name)
             print()
 
+            # return if no backup is scheduled
             if backup_needed is None:
                 return
+            # if a backup is forced, set backup type to "incremental"
+            # (but do not update backup level name, so the user can
+            # see that the backup has been forced)
             elif backup_needed < 0:
                 backup_needed = 2
 
+            # notify user that backup creation is starting
             self.notify_user('Creating {} backup...'.format(level_name),
                              self.INFORMATION)
 
+            # create backup
             self.create_backup(backup_needed)
 
+            # notify user that backup creation has finished
             self.notify_user('Finished.', self.INFORMATION)
         finally:
+            # execute post-run command (regardless of errors)
             self.execute_command('post-run command', self.post_run_command)
+
             print('---')
 
 
@@ -185,42 +202,41 @@ class BackupRunner:
     def create_backup(self, backup_type):
         print()
 
-        return  # DEBUG
-
-        self._database.check_backup_type(backup_type)
-
-        if backup_type == 'full':
+        # full backup
+        if backup_type == 0:
             postfix = self._database.postfix_full
             reference_base = 'none'
             reference_option = ''
-        elif backup_type == 'diff':
+        # differential backup
+        elif backup_type == 1:
             postfix = self._database.postfix_diff
-            reference_base = self._database.name_of_last_backup('full')
+            reference_base = self._database.name_of_last_backup(0)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
-            reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
+            reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
                 self._database.backup_directory, reference_base,
                 reference_catalog))
-        elif backup_type == 'incr':
+        # incremental backup
+        elif backup_type == 2:
             postfix = self._database.postfix_incr
-            last_full = self._database.days_since_last_backup('full')
-            last_diff = self._database.days_since_last_backup('diff')
-            last_incr = self._database.days_since_last_backup('incr')
+            last_full = self._database.days_since_last_backup(0)
+            last_diff = self._database.days_since_last_backup(1)
+            last_incr = self._database.days_since_last_backup(2)
 
-            newest_backup = 'full'
             newest_age = last_full
+            newest_type = 0
 
-            if (last_diff >= 0) and (last_diff < newest_age):
-                newest_backup = 'diff'
+            if last_diff >= 0 and last_diff < newest_age:
                 newest_age = last_diff
+                newest_type = 1
 
-            if (last_incr >= 0) and (last_incr < newest_age):
-                newest_backup = 'incr'
+            if last_incr >= 0 and last_incr < newest_age:
                 newest_age = last_incr
+                newest_type = 2
 
-            reference_base = self._database.name_of_last_backup(newest_backup)
+            reference_base = self._database.name_of_last_backup(newest_type)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
-            reference_catalog = '%s-%s' % (reference_timestamp, "catalog")
+            reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
                 self._database.backup_directory, reference_base,
                 reference_catalog))
@@ -252,16 +268,16 @@ class BackupRunner:
 
         if retcode == 11:
             self.notify_user('Some files were changed during backup.',
-                               self.WARNING)
+                             self.WARNING)
         elif retcode > 0:
             # FIXME: maybe catch exceptions
             # FIXME: delete slices and directory
             self.notify_user('dar exited with code %d.' % retcode,
-                               self.ERROR)
+                             self.ERROR)
 
         self.notify_user('%(files)d file(s), %(size)s\n' % \
-                           self._get_backup_size(base_file),
-                           self.INFORMATION)
+                         self._get_backup_size(base_file),
+                         self.INFORMATION)
 
         # isolate catalog
         cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
@@ -277,8 +293,9 @@ class BackupRunner:
         print()
 
         if retcode == 5:
-            self.notify_user('Some files do not follow chronological order when archive index increases.',
-                               self.WARNING)
+            self.notify_user('Some files do not follow chronological '
+                             'order when archive index increases.',
+                             self.WARNING)
         elif retcode > 0:
             # FIXME: maybe catch exceptions
             # FIXME: delete slices and directory
@@ -398,8 +415,8 @@ class BackupRunner:
         if not message:
             return
 
-        assert(urgency in (self.INFORMATION, self.WARNING, self.ERROR,
-                           self.FINAL_ERROR))
+        assert urgency in (self.INFORMATION, self.WARNING, self.ERROR,
+                           self.FINAL_ERROR)
 
         if urgency == self.INFORMATION:
             # expire informational messages after 30 seconds
@@ -429,16 +446,3 @@ class BackupRunner:
             print('WARNING: %s' % message)
         else:
             print('%s' % message)
-
-
-if __name__ == '__main__':
-    # check Python version
-    if sys.version_info.major != 3:
-        print()
-        print('Lalikan does not run on Python {}.'.format(
-            sys.version_info.major))
-        print()
-
-        exit(1)
-
-    Lalikan()
