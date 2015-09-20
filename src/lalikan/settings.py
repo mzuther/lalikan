@@ -23,16 +23,17 @@ import configparser
 
 
 class Settings:
-    """Store user and application settings in one place and make them available.
+    """
+    Store user and application settings in one place and make them
+    available.
+
     """
     def __init__(self, config_filename):
-        """Initialise user settings and application information.
+        """
+        Initialise user settings and application information.
 
-        Keyword arguments:
-        None
-
-        Return value:
-        None
+        :rtype:
+            None
 
         """
         # common application copyrights and information (only set here, private)
@@ -65,13 +66,13 @@ Thank you for using free software!"""
 
 
     def __repr__(self):
-        """Return all the contents of the INI file as string.
+        """
+        Return all the contents of the INI file as string.
 
-        Keyword arguments:
-        None
-
-        Return value:
-        Formatted string containing all options from the INI file
+        :returns:
+            all options from the INI file
+        :rtype:
+            String
 
         """
         output = ''
@@ -89,16 +90,28 @@ Thank you for using free software!"""
 
 
     def get(self, section, option_name, allow_empty):
-        """Get an application setting.
+        """
+        Get an application setting.
 
-        Keyword arguments:
-        section -- string that specifies the section to be queried
-        option_name -- string that specifies the option to be queried
-        allow_empty -- queried string may be empty or option may be
-                       non-existant
+        :param section:
+            section to be queried
+        :type section:
+            String
 
-        Return value:
-        String containing the specified application option
+        :param option_name:
+            option to be queried
+        :type option_name:
+            String
+
+        :param allow_empty:
+            queried string may be empty or option may be non-existant
+        :type allow_empty:
+            Boolean
+
+        :returns:
+            specified application option
+        :rtype:
+            String
 
         """
         if allow_empty:
@@ -111,27 +124,36 @@ Thank you for using free software!"""
 
 
     def options(self, section):
-        """Get all application option names of a section (sorted).
+        """
+        Get all application option names of a section (sorted).
 
-        Keyword arguments:
-        section -- string that specifies the section to be queried
+        :param section:
+            section to be queried
+        :type section:
+            String
 
-        Return value:
-        Tuple containing application option names of the given section
+        :returns:
+             application option names of the given section
+        :rtype:
+            Tuple
 
         """
         return tuple(sorted(self._settings.options(section), key=str.lower))
 
 
     def items(self, section):
-        """Get all application options and their values of a section (sorted).
+        """
+        Get all application options and their values of a section (sorted).
 
-        Keyword arguments:
-        section -- string that specifies the section to be queried
+        :param section:
+            section to be queried
+        :type section:
+            String
 
-        Return value:
-        Tuple containing application options and their values of the
-        given section
+        :returns:
+            application options and their values of the given section
+        :rtype:
+            Tuple
 
         """
         items = self._settings.items(section)
@@ -139,13 +161,13 @@ Thank you for using free software!"""
 
 
     def sections(self):
-        """Get all sections (sorted).
+        """
+        Get all sections (sorted).
 
-        Keyword arguments:
-        None
-
-        Return value:
-        Tuple containing all section names
+        :returns:
+             all section names
+        :rtype:
+            Tuple
 
         """
         sections = sorted(self._settings.sections(), key=str.lower)
@@ -160,14 +182,18 @@ Thank you for using free software!"""
 
 
     def get_option(self, option):
-        """Return application describing option as string.
+        """
+        Return application describing option as string.
 
-        Keyword arguments:
-        option -- option to query
+        :param option:
+            option to query
+        :type option:
+            String
 
-        Return value:
-        Formatted string containing option's value (or None for
-        invalid queries)
+        :returns:
+            the option's value
+        :rtype:
+            String (or None for invalid queries)
 
         """
         # tuple of option names that may be queried (as a security measure)
@@ -182,14 +208,18 @@ Thank you for using free software!"""
 
 
     def get_name_and_version(self, application_name=None):
-        """Return application version as string.
+        """
+        Return application version as string.
 
-        Keyword arguments:
-        application_name -- optional string holding the application's
-        name (defaults to application name set in this file)
+        :param application_name:
+            application name (defaults to name set in this file)
+        :type application_name:
+            String
 
-        Return value:
-        Formatted string containing application version
+        :returns:
+            application version
+        :rtype:
+            String
 
         """
         if application_name is None:
@@ -203,23 +233,26 @@ Thank you for using free software!"""
 
 
     def get_description(self):
-        """Return application description as string.
+        """
+        Return application description as string.
 
-        Return value:
-        Formatted string containing application description
+        :returns:
+            application description
+        :rtype:
+            String
 
         """
         return self.get_option('description')
 
 
     def get_copyrights(self):
-        """Return application copyrights as string.
+        """
+        Return application copyrights as string.
 
-        Keyword arguments:
-        None
-
-        Return value:
-        Formatted string containing application copyrights
+        :returns:
+            application copyrights
+        :rtype:
+            String
 
         """
         return 'Copyright (c) {years} {authors}'.format(
@@ -228,14 +261,18 @@ Thank you for using free software!"""
 
 
     def get_license(self, long_description):
-        """Return application license as string.
+        """
+        Return application license as string.
 
-        Keyword arguments:
-        long_description -- Boolean indication whether to output long
-        version of description
+        :param long_description:
+            output long version of description
+        :type long_description:
+            Boolean
 
-        Return value:
-        Formatted string containing application license
+        :returns:
+            application license
+        :rtype:
+            String
 
         """
         if long_description:

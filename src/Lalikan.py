@@ -227,19 +227,26 @@ if __name__ == '__main__':
     errors_occurred = False
 
     # loop over specified backup sections
-    for section in sections:
+    for n in range(len(sections)):
         try:
             # create backup for section
-            lalikan.runner.BackupRunner(settings, section, force_backup)
+            lalikan.runner.BackupRunner(settings, sections[n], force_backup)
         except OSError as err:
             # print error message
             print(err)
 
             # remember that an error occurred
             errors_occurred = True
+        finally:
+            if n < (len(sections) - 1):
+                print()
+                print('---')
+
+            print()
 
     # print summary and exit with error code
     if errors_occurred:
+        print('---')
         print()
         print('At least one error has occurred!')
         print()

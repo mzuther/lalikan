@@ -22,12 +22,8 @@
 import datetime
 import glob
 import os
-import re
 import subprocess
 import sys
-import time
-
-from optparse import OptionParser
 
 import lalikan.database
 import lalikan.settings
@@ -37,7 +33,6 @@ class BackupRunner:
     INFORMATION = 'information'
     WARNING = 'warning'
     ERROR = 'error'
-    FINAL_ERROR = 'error'
 
     """
     Initialise backup runner.
@@ -70,11 +65,11 @@ class BackupRunner:
             self.execute_command('pre-run command', self.pre_run_command)
 
             # if necessary, recursively create backup root directory
-            if not os.path.exists(self._database.backup_directory):
-                os.makedirs(self._database.backup_directory)
+            if not os.path.exists(self.backup_directory):
+                os.makedirs(self.backup_directory)
 
             # remove empty directories in backup root directory
-            self._remove_empty_directories()
+            self.remove_empty_directories()
 
             # display time to next scheduled full backup
             print()
@@ -122,11 +117,15 @@ class BackupRunner:
 
             # notify user that backup creation has finished
             self.notify_user('Finished.', self.INFORMATION)
+            print()
         finally:
             # execute post-run command (regardless of errors)
             self.execute_command('post-run command', self.post_run_command)
 
-            print('---')
+
+    @property
+    def backup_directory(self):
+        return self._database.backup_directory
 
 
     @property
@@ -143,54 +142,70 @@ class BackupRunner:
         return self._database.get_level_name(backup_level)
 
 
-    def _remove_empty_directories(self):
-        """Remove empty directories from backup filetree
+    def remove_empty_directories(self):
+        """
+        Remove empty directories from backup filetree.
 
-        Keyword arguments:
-        None
-
-        Return value:
-        None
+        :rtype:
+            None
 
         """
-        # initialise loop variable
-        repeat = True
+        # loop over subdirectories of backup directory
+        for root, dirs, files in os.walk(self.backup_directory, topdown=False):
+            # do not remove root directory
+            if root != self.backup_directory:
+                continue
 
-        while repeat:
-            # will break loop until updated
-            repeat = False
+            # directory is empty
+            if len(dirs) == 0 and len(files) == 0:
+                print('removing empty directory "{}"'.format(root))
 
-            # find empty directories
-            for root, directories, files in os.walk(
-                    self._database.backup_directory, topdown=False):
-               # do not remove root directory
-                if root != self._database.backup_directory:
-                    # directory is empty
-                    if (len(directories) < 1) and (len(files) < 1):
-                        # keep looping to find *all* empty directories
-                        repeat = True
-                        print('removing empty directory "%(directory)s"' % \
-                            {'directory': root})
-                        # delete empty directory
-                        os.rmdir(root)
+                # delete directory
+                os.rmdir(root)
 
 
     def execute_command(self, message, command):
+        """
+        Execute command from shell.
+
+        :param message:
+            message to be output on the command line
+        :type message:
+            String
+
+        :param command:
+            complete shell command
+        :type command:
+            String
+
+        :returns:
+            exit code
+        :rtype:
+            integer
+
+        """
+        # skip on empty shell command
         if not command:
             return
 
+        # display message on command line
         print('{}:  {}'.format(message, command))
 
-        # stdin is needed to be able to communicate with the
-        # application (i.e. answer a question)
+        # run command; stdin is needed to be able to communicate with
+        # the shell command (i.e. answer a question)
         proc = subprocess.Popen(
             command,
             shell=True,
+            universal_newlines=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
 
+        # communicate with shell command and wait for it to end
         output = proc.communicate()
+
+        # store exit code
+        retcode = proc.wait()
 
         # notify user of possible output on stdin
         self.notify_user(output[0], self.INFORMATION)
@@ -198,8 +213,46 @@ class BackupRunner:
         # notify user of possible output on sterr
         self.notify_user(output[1], self.ERROR)
 
+        # return exit code
+        return retcode
+
+
+    def execute_command_simple(self, command):
+        """
+        Execute command from shell.
+
+        :param command:
+            complete shell command
+        :type command:
+            String
+
+        :rtype:
+            None
+
+        """
+        # skip on empty shell command
+        if not command:
+            return
+
+        # run command; stdin is needed to be able to communicate with
+        # the shell command (i.e. answer a question)
+        proc = subprocess.Popen(
+            command,
+            shell=True,
+            universal_newlines=True,
+            stdin=subprocess.PIPE)
+
+        # communicate with shell command and wait for it to end
+        proc.communicate()
+
+        # store and return exit code
+        retcode = proc.wait()
+        return retcode
+
 
     def create_backup(self, backup_type):
+        return  # DEBUG
+
         print()
 
         # full backup
@@ -214,8 +267,7 @@ class BackupRunner:
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
-                self._database.backup_directory, reference_base,
-                reference_catalog))
+                self.backup_directory, reference_base, reference_catalog))
         # incremental backup
         elif backup_type == 2:
             postfix = self._database.postfix_incr
@@ -238,14 +290,13 @@ class BackupRunner:
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
-                self._database.backup_directory, reference_base,
-                reference_catalog))
+                self.backup_directory, reference_base, reference_catalog))
 
         now = datetime.datetime.now()
 
         timestamp = now.strftime(self._database.date_format)
         base_name = '%s-%s' % (timestamp, postfix)
-        base_directory = os.path.join(self._database.backup_directory, base_name)
+        base_directory = os.path.join(self.backup_directory, base_name)
         base_file = os.path.join(base_directory, base_name)
         catalog_name = '%s-%s' % (timestamp, "catalog")
         catalog_file = os.path.join(base_directory, catalog_name)
@@ -254,16 +305,14 @@ class BackupRunner:
 
         os.mkdir(base_directory)
 
-        cmd = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
-              {'dar': self._database.dar_path,
-               'base': self.sanitise_path(base_file),
-               'reference': reference_option,
-               'options': self._database.dar_options}
+        command = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
+                  {'dar': self._database.dar_path,
+                   'base': self.sanitise_path(base_file),
+                   'reference': reference_option,
+                   'options': self._database.dar_options}
 
-        print('creating backup: %s\n' % cmd)
-        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
-        proc.communicate()
-        retcode = proc.wait()
+        print('creating backup: %s\n' % command)
+        retcode = self.execute_command_simple(command)
         print()
 
         if retcode == 11:
@@ -280,16 +329,14 @@ class BackupRunner:
                          self.INFORMATION)
 
         # isolate catalog
-        cmd = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
-              {'dar': self._database.dar_path,
-               'base': self.sanitise_path(catalog_file),
-               'reference': self.sanitise_path(base_file),
-               'options': self._database.dar_options}
+        command = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
+                  {'dar': self._database.dar_path,
+                   'base': self.sanitise_path(catalog_file),
+                   'reference': self.sanitise_path(base_file),
+                   'options': self._database.dar_options}
 
-        print('isolating catalog: %s\n' % cmd)
-        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
-        proc.communicate()
-        retcode = proc.wait()
+        print('isolating catalog: %s\n' % command)
+        retcode = self.execute_command_simple(command)
         print()
 
         if retcode == 5:
@@ -371,13 +418,13 @@ class BackupRunner:
         elif backup_type == 'incr':
             return
 
-        self._remove_empty_directories()
+        self.remove_empty_directories()
 
 
     def _delete_backup(self, basename):
         print('deleting old backup "%s"' % basename)
 
-        base_directory = os.path.join(self._database.backup_directory, basename)
+        base_directory = os.path.join(self.backup_directory, basename)
         for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
             os.unlink(backup_file)
         for checksum_file in glob.glob(os.path.join(base_directory, '*.dar.md5')):
@@ -408,41 +455,81 @@ class BackupRunner:
 
 
     def sanitise_path(self, path):
+        """
+        Return a normalised absolutised version of the specified path name.
+        On Windows, the path name will also be converted to something that
+        Cygwin understands (such as "/cygdrive/c/path/to/dar").
+
+        :param path_name:
+            path name
+        :type path_name:
+            String
+
+        :raises:
+            :py:class:`ValueError`
+        :returns:
+            sanitised path name
+        :rtype:
+            String
+
+        """
         return self._database.sanitise_path(path)
 
 
     def notify_user(self, message, urgency):
+        """
+        Print message on shell and (on Linux) in notification area of the
+        window manager.
+
+        :param message:
+            message to be output
+        :type message:
+            String
+
+        :param urgency:
+            urgency of message
+        :type urgency:
+            pre-defined String
+
+        :rtype:
+            None
+
+        """
+        assert urgency in (self.INFORMATION, self.WARNING, self.ERROR)
+
+        # remove trailing white-space from message
+        message = message.strip()
+
+        # skip on empty message
         if not message:
             return
 
-        assert urgency in (self.INFORMATION, self.WARNING, self.ERROR,
-                           self.FINAL_ERROR)
-
-        if urgency == self.INFORMATION:
-            # expire informational messages after 30 seconds
-            expiration = 30
-        else:
-            # do not expire warnings and errors
-            expiration = 0
-
+        # notify user (only works on Linux)
         if sys.platform == 'linux':
-            cmd = "notify-send -t %(expiration)d -u %(urgency)s -i %(icon)s '%(summary)s' '%(message)s'" % \
-                  {'expiration': expiration * 1000,
-                   'urgency': 'normal',
-                   'icon': 'dialog-%s' % urgency,
-                   'summary': 'Lalikan (%s)' % self.section,
-                   'message': message}
+            # expire informational messages after 30 seconds
+            if urgency == self.INFORMATION:
+                expiration = 30
+            # do not expire warnings and errors
+            else:
+                expiration = 0
 
-            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE)
-            proc.communicate()
-            retcode = proc.wait()
+            # compile shell command
+            command = "notify-send -t {} -u {} -i {} '{}' '{}'".format(
+                expiration * 1000,
+                'normal',
+                'dialog-{}'.format(urgency),
+                'Lalikan ({})'.format(self.section),
+                message)
 
+            # run shell command
+            self.execute_command_simple(command)
+
+        # raise exception on errors
         if urgency == self.ERROR:
             raise OSError(message)
-        if urgency == self.FINAL_ERROR:
-            print(message)
-            exit(1)
+        # print warnings
         elif urgency == self.WARNING:
-            print('WARNING: %s' % message)
+            print('WARNING: {}'.format(message))
+        # print informational messages
         else:
-            print('%s' % message)
+            print(message)
