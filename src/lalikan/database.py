@@ -364,7 +364,7 @@ class BackupDatabase:
     def post_run_command(self):
         """
         Attribute: command that is executed in the shell after the backup
-        hss finished.
+        has finished.
 
         :returns:
             shell command

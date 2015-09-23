@@ -125,20 +125,63 @@ class BackupRunner:
 
     @property
     def backup_directory(self):
+        """
+        Attribute: file path for backup directory.
+
+        :returns:
+            file path for backup directory
+        :rtype:
+            String
+
+        """
         return self._database.backup_directory
 
 
     @property
     def pre_run_command(self):
+        """
+        Attribute: command that is executed in the shell before the backup
+        is started.
+
+        :returns:
+            shell command
+        :rtype:
+            String
+
+        """
         return self._database.pre_run_command
 
 
     @property
     def post_run_command(self):
+        """
+        Attribute: command that is executed in the shell after the backup
+        has finished.
+
+        :returns:
+            shell command
+        :rtype:
+            String
+
+        """
         return self._database.post_run_command
 
 
     def get_level_name(self, backup_level):
+        """
+        Get name for given backup level.
+
+        :param backup_level:
+            backup level (-1 to 2 or None)
+        :type backup_level:
+            integer
+
+        :returns:
+            name for backup level
+        :rtype:
+            String
+
+        """
         return self._database.get_level_name(backup_level)
 
 
@@ -422,7 +465,7 @@ class BackupRunner:
 
 
     def _delete_backup(self, basename):
-        print('deleting old backup "%s"' % basename)
+        print('deleting backup "{}"'.format(basename))
 
         base_directory = os.path.join(self.backup_directory, basename)
         for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
@@ -432,26 +475,54 @@ class BackupRunner:
 
 
     def _get_backup_size(self, base_file):
-        size = 0
-        files = 0
+        """
+        Return number of archive files and their accumulated file size for
+        an existing backup.
 
-        for single_file in glob.glob('%s.*.dar' % base_file):
-            if os.path.isfile(single_file) and not os.path.islink(single_file):
-                files += 1
-                size += os.stat(single_file).st_size
+        :param base_file:
+            path name of base file (/backup_directory/date_format/date_format)
+        :type base_file:
+            String
 
-        if size > 1e12:
-            filesize = '%s TB' % round(size / 1e12, 1)
-        elif size > 1e9:
-            filesize = '%s GB' % round(size / 1e9, 1)
-        elif size > 1e6:
-            filesize = '%s MB' % round(size / 1e6, 1)
-        elif size > 1e3:
-            filesize = '%s kB' % round(size / 1e3, 1)
+        :returns:
+            number of archive files and their accumulated file size
+        :rtype:
+            Tuple
+
+        """
+        # initialise number of archive files
+        number_of_files = 0
+
+        # initialise file size of archive files
+        archive_size = 0
+
+        # get list of archive file names
+        archive_files = glob.glob('{}.*.dar'.format(base_file))
+
+        # loop over archive file names
+        for archive_file in archive_files:
+            # only count regular files
+            if os.path.isfile(archive_file):
+                # increment number of archive files
+                number_of_files += 1
+
+                # add file size to total size
+                archive_size += os.stat(archive_file).st_size
+
+        # format file size using the correct unit prefix
+        if archive_size > 1e12:
+            filesize = '{:.1f} TB'.format(archive_size / 1e12)
+        elif archive_size > 1e9:
+            filesize = '{:.1f} GB'.format(archive_size / 1e9)
+        elif archive_size > 1e6:
+            filesize = '{:.1f} MB'.format(archive_size / 1e6)
+        elif archive_size > 1e3:
+            filesize = '{:.1f} kB'.format(archive_size / 1e3)
         else:
-            filesize = '%s bytes' % size
+            filesize = '{} bytes'.format(archive_size)
 
-        return {'files': files, 'size': filesize}
+        # return results
+        return {'files': number_of_files, 'size': filesize}
 
 
     def sanitise_path(self, path):
