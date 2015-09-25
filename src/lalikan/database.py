@@ -418,7 +418,7 @@ class BackupDatabase:
         return self._backup_levels[0:backup_level + 1]
 
 
-    def _check_backup_level(self, backup_level):
+    def check_backup_level(self, backup_level):
         """
         Checks whether the specified backup level (such as "full")
         is allowed.
@@ -436,7 +436,7 @@ class BackupDatabase:
         """
         if backup_level not in self._backup_levels:
             raise ValueError(
-                'wrong backup level given ("{0}")'.format(backup_level))
+                'wrong backup level given ("{}")'.format(backup_level))
 
 
     def _fill_schedule(self, schedule, backup_level):
@@ -469,7 +469,7 @@ class BackupDatabase:
             interval = datetime.timedelta(self.interval_incr)
         else:
             raise ValueError(
-                'wrong backup level given ("{0}")'.format(backup_level))
+                'wrong backup level given ("{}")'.format(backup_level))
 
         # temporary storage for newly scheduled backups
         temp_schedule = []
@@ -589,10 +589,17 @@ class BackupDatabase:
         return lalikan.properties.BackupProperties(None, backup_level)
 
 
-    def find_existing_backups(self, prior_to=None):
+    def find_existing_backups(self, filter_level=-1, prior_to=None):
         """
-        Find existing backups.  The result can be filtered to backups
-        prior to (or exactly at) a given point in time.
+        Find existing backups.  The result can be filtered to match
+        certain backup levels and to return backups prior to (or
+        exactly at) a given point in time.
+
+        :param filter_level:
+            filter all backup levels other than this one (0 to 2); -1
+            passes all backup levels
+        :type filter_level:
+            integer
 
         :param prior_to:
             given point in time
@@ -600,7 +607,7 @@ class BackupDatabase:
             :py:mod:`datetime.datetime` or None
 
         :returns:
-            list of existing backups
+            list of existing backups, sorted by date and time
         :rtype:
             list of lalikan.properties.BackupProperties
 
@@ -634,7 +641,7 @@ class BackupDatabase:
 
                 # valid backups contain a backup catalog; prepare a
                 # search for this catalog
-                catalog_name = '{0}-catalog.01.dar'.format(timestamp)
+                catalog_name = '{}-catalog.01.dar'.format(timestamp)
                 catalog_path = os.path.join(full_path, catalog_name)
 
                 # catalog file exists
@@ -647,18 +654,15 @@ class BackupDatabase:
         # sort backups by date and time
         existing_backups.sort()
 
+        # optionally filter backups by level
+        if filter_level in self._backup_levels:
+            existing_backups = [backup for backup in existing_backups \
+                                if backup.level == filter_level]
+
         # optionally filter backups by date
         if prior_to:
-            temp = []
-
-            # loop over backups
-            for backup in existing_backups:
-                # keep only backups prior to (or exactly at) given date
-                if backup.date <= prior_to:
-                    temp.append(backup)
-
-            # store filtered backups
-            existing_backups = temp
+            existing_backups = [backup for backup in existing_backups \
+                                if backup.date <= prior_to]
 
         # return result
         return existing_backups
@@ -671,7 +675,7 @@ class BackupDatabase:
         :param backup_level:
             backup level (0 to 2)
         :type backup_level:
-            index
+            integer
 
         :returns:
             last existing backup
@@ -680,7 +684,7 @@ class BackupDatabase:
 
         """
         # find existing backups prior to (or exactly at) given date
-        existing_backups = self.find_existing_backups(self.point_in_time)
+        existing_backups = self.find_existing_backups(-1, self.point_in_time)
 
         # no backups were found
         if len(existing_backups) == 0:
@@ -708,7 +712,7 @@ class BackupDatabase:
         :param backup_level:
             backup level (0 to 2)
         :type backup_level:
-            index
+            integer
 
         :returns:
             last scheduled backup
@@ -717,7 +721,7 @@ class BackupDatabase:
 
         """
         # assert valid backup level
-        self._check_backup_level(backup_level)
+        self.check_backup_level(backup_level)
 
         # get date of last existing backup of given (or lower) level
         last_existing = self.last_existing_backup(backup_level)
@@ -751,7 +755,7 @@ class BackupDatabase:
         :param backup_level:
             backup level (0 to 2)
         :type backup_level:
-            index
+            integer
 
         :returns:
             next scheduled backup
@@ -760,7 +764,7 @@ class BackupDatabase:
 
         """
         # assert valid backup level
-        self._check_backup_level(backup_level)
+        self.check_backup_level(backup_level)
 
         # get backup levels that will be accepted as substitute for
         # given backup level
@@ -792,7 +796,7 @@ class BackupDatabase:
         :param backup_level:
             backup level (0 to 2)
         :type backup_level:
-            index
+            integer
 
         :returns:
             days that have passed since a backup has become due

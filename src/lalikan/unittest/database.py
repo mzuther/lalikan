@@ -87,16 +87,16 @@ class TestBackupDatabase(unittest.TestCase):
             self.settings, 'Test1')
 
         for backup_level in range(3):
-            database._check_backup_level(backup_level)
+            database.check_backup_level(backup_level)
 
         with self.assertRaises(ValueError):
-            database._check_backup_level('incremental')
+            database.check_backup_level('incremental')
 
         with self.assertRaises(ValueError):
-            database._check_backup_level('differential')
+            database.check_backup_level('differential')
 
         with self.assertRaises(ValueError):
-            database._check_backup_level('XXXX')
+            database.check_backup_level('XXXX')
 
         check_level_names = {
             None: 'none',
@@ -587,7 +587,7 @@ full:  2012-01-20 20:00:00
             database.clear_cache()
 
             self.assertListEqual(
-                database.find_existing_backups(datetime.datetime(
+                database.find_existing_backups(-1, datetime.datetime(
                         year=2012, month=1, day=2,
                         hour=2, minute=0)),
                 [])
@@ -597,34 +597,52 @@ full:  2012-01-20 20:00:00
                 faked_backups[:5])
 
             self.assertListEqual(
-                database.find_existing_backups(datetime.datetime(
+                database.find_existing_backups(-1, datetime.datetime(
                         year=2012, month=1, day=2,
                         hour=2, minute=1)),
                 faked_backups[:1])
 
             self.assertListEqual(
-                database.find_existing_backups(datetime.datetime(
+                database.find_existing_backups(-1, datetime.datetime(
                         year=2012, month=1, day=5,
                         hour=12, minute=33)),
                 faked_backups[:3])
 
             self.assertListEqual(
-                database.find_existing_backups(datetime.datetime(
+                database.find_existing_backups(-1, datetime.datetime(
                         year=2012, month=1, day=5,
                         hour=20, minute=34)),
                 faked_backups[:4])
 
             self.assertListEqual(
-                database.find_existing_backups(datetime.datetime(
+                database.find_existing_backups(-1, datetime.datetime(
                         year=2012, month=1, day=5,
                         hour=20, minute=35)),
                 faked_backups[:4])
 
             self.assertListEqual(
-                database.find_existing_backups(datetime.datetime(
+                database.find_existing_backups(-1, datetime.datetime(
                         year=2099, month=12, day=31,
                         hour=23, minute=59)),
                 faked_backups[:5])
+
+            self.assertListEqual(
+                database.find_existing_backups(0, datetime.datetime(
+                        year=2099, month=12, day=31,
+                        hour=23, minute=59)),
+                [faked_backups[0]])
+
+            self.assertListEqual(
+                database.find_existing_backups(1, datetime.datetime(
+                        year=2099, month=12, day=31,
+                        hour=23, minute=59)),
+                [faked_backups[3]])
+
+            self.assertListEqual(
+                database.find_existing_backups(2, datetime.datetime(
+                        year=2099, month=12, day=31,
+                        hour=23, minute=59)),
+                [faked_backups[1], faked_backups[2], faked_backups[4]])
 
         finally:
             shutil.rmtree(backup_directory)

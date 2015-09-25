@@ -329,18 +329,18 @@ class BackupRunner:
         return retcode
 
 
-    def create_backup(self, backup_type):
+    def create_backup(self, backup_level):
         return  # DEBUG
 
         print()
 
         # full backup
-        if backup_type == 0:
+        if backup_level == 0:
             postfix = self._database.postfix_full
             reference_base = 'none'
             reference_option = ''
         # differential backup
-        elif backup_type == 1:
+        elif backup_level == 1:
             postfix = self._database.postfix_diff
             reference_base = self._database.name_of_last_backup(0)
             reference_timestamp = reference_base.rsplit('-', 1)[0]
@@ -348,7 +348,7 @@ class BackupRunner:
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
                 self.backup_directory, reference_base, reference_catalog))
         # incremental backup
-        elif backup_type == 2:
+        elif backup_level == 2:
             postfix = self._database.postfix_incr
             last_full = self._database.days_since_last_backup(0)
             last_diff = self._database.days_since_last_backup(1)
@@ -429,75 +429,77 @@ class BackupRunner:
             # FIXME: delete slices and directory
             raise OSError('dar exited with code %d' % retcode)
 
-        self._delete_old_backups(backup_type)
+        self.delete_old_backups(backup_level)
 
 
-    def _delete_old_backups(self, backup_type):
-        self._database.check_backup_type(backup_type)
+    def delete_old_backups(self, backup_level):
+        """
+        Delete dispensable backups according to certain rules.
 
-        if backup_type == 'full':
-            postfix = self._database.postfix_full
-        elif backup_type == 'diff':
-            postfix = self._database.postfix_diff
-        elif backup_type == 'incr':
-            postfix = self._database.postfix_incr
+        :param backup_level:
+            backup level (0 to 2)
+        :type backup_level:
+            integer
 
-        remove_prior = self._database.find_old_backups(backup_type, None)
-        if len (remove_prior) < 2:
+        :returns:
+            None
+
+        """
+        # assert valid backup level
+        self._database.check_backup_level(backup_level)
+
+        # get existing backups of same backup level???
+        existing_backups = self._database.find_existing_backups(
+            backup_level, None)
+
+        if len (existing_backups) < 2:
             return
-        else:
-            # get date of previous backup of same type
-            prior_date = remove_prior[-2]
-            prior_date = prior_date[:-len(postfix) - 1]
-            prior_date = datetime.datetime.strptime(
-                prior_date, self._database.date_format)
 
-        # please remember: never delete full backups!
-        if backup_type == 'full':
+        # get date of previous backup of same type
+        prior_date = existing_backups[-2].date
+
+        # full backup; please remember to never delete these!
+        if backup_level == 0:
             print('\nfull: removing diff and incr prior to last full (%s)\n' % \
                 prior_date)
 
-            for base_name in self._database.find_old_backups(
-                    'incr', prior_date):
+            for base_name in self._database.find_existing_backups(
+                    2, prior_date):
                 self.delete_archive_files(base_name)
 
-            for base_name in self._database.find_old_backups(
-                    'diff', prior_date):
+            for base_name in self._database.find_existing_backups(
+                    1, prior_date):
                 self.delete_archive_files(base_name)
 
             # separate check for old "diff" backups
-            postfix_diff = self._database.postfix_diff
-            remove_prior_diff = self._database.find_old_backups(
-                'diff', None)
+            existing_backups_diff = self._database.find_existing_backups(
+                1, None)
 
-            if (len (remove_prior) > 1) and (len(remove_prior_diff) > 0):
+            if len (existing_backups) > 1 and len(existing_backups_diff) > 0:
                 # get date of last full backup
-                last_full_date = remove_prior[-1]
-                last_full_date = last_full_date[:-len(postfix) - 1]
-                last_full_date = datetime.datetime.strptime(
-                    last_full_date, self._database.date_format)
+                last_full_date = existing_backups[-1].date
 
                 # get date of last "diff" backup
-                last_diff_date = remove_prior_diff[-1]
-                last_diff_date = last_diff_date[:-len(postfix_diff) - 1]
-                last_diff_date = datetime.datetime.strptime(
-                    last_diff_date, self._database.date_format)
+                last_diff_date = existing_backups_diff[-1].date
 
                 print('\nfull: removing incr prior to last diff (%s)\n' % \
                     last_diff_date)
 
-                for base_name in self._database.find_old_backups(
-                        'incr', last_diff_date):
+                for base_name in self._database.find_existing_backups(
+                        2, last_diff_date):
                     self.delete_archive_files(base_name)
 
-        elif backup_type == 'diff':
+        # differential backup
+        elif backup_level == 1:
             print('\ndiff: removing incr prior to last diff (%s)\n' % \
                 prior_date)
 
-            for base_name in self._database.find_old_backups(
-                    'incr', prior_date):
+            for base_name in self._database.find_existing_backups(
+                    2, prior_date):
                 self.delete_archive_files(base_name)
-        elif backup_type == 'incr':
+
+        # incremental backup
+        elif backup_level == 2:
             return
 
         self.remove_empty_directories()
