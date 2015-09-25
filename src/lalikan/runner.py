@@ -167,6 +167,42 @@ class BackupRunner:
         return self._database.post_run_command
 
 
+    def get_base_directory(self, base_name):
+        """
+        Calculate base directory from base name.
+
+        :param base_name:
+            base name (e.g. "2014-12-31_1937-full")
+        :type base_name:
+            String
+
+        :returns:
+            base directory (e.g. "/backup_directory/base_name")
+        :rtype:
+            String
+
+        """
+        return os.path.join(self.backup_directory, base_name)
+
+
+    def get_base_file(self, base_name):
+        """
+        Calculate base file from base name.
+
+        :param base_name:
+            base name (e.g. "2014-12-31_1937-full")
+        :type base_name:
+            String
+
+        :returns:
+            base file (e.g. "/backup_directory/base_name/base_name")
+        :rtype:
+            String
+
+        """
+        return os.path.join(self.get_base_directory(), base_name)
+
+
     def get_level_name(self, backup_level):
         """
         Get name for given backup level.
@@ -339,8 +375,10 @@ class BackupRunner:
 
         timestamp = now.strftime(self._database.date_format)
         base_name = '%s-%s' % (timestamp, postfix)
-        base_directory = os.path.join(self.backup_directory, base_name)
-        base_file = os.path.join(base_directory, base_name)
+
+        base_directory = self.get_base_directory(base_name)
+        base_file = self.get_base_file(base_name)
+
         catalog_name = '%s-%s' % (timestamp, "catalog")
         catalog_file = os.path.join(base_directory, catalog_name)
 
@@ -368,7 +406,7 @@ class BackupRunner:
                              self.ERROR)
 
         self.notify_user('%(files)d file(s), %(size)s\n' % \
-                         self._get_backup_size(base_file),
+                         self.get_backup_size(base_name),
                          self.INFORMATION)
 
         # isolate catalog
@@ -419,12 +457,13 @@ class BackupRunner:
             print('\nfull: removing diff and incr prior to last full (%s)\n' % \
                 prior_date)
 
-            for basename in self._database.find_old_backups(
+            for base_name in self._database.find_old_backups(
                     'incr', prior_date):
-                self._delete_backup(basename)
-            for basename in self._database.find_old_backups(
+                self.delete_archive_files(base_name)
+
+            for base_name in self._database.find_old_backups(
                     'diff', prior_date):
-                self._delete_backup(basename)
+                self.delete_archive_files(base_name)
 
             # separate check for old "diff" backups
             postfix_diff = self._database.postfix_diff
@@ -447,41 +486,66 @@ class BackupRunner:
                 print('\nfull: removing incr prior to last diff (%s)\n' % \
                     last_diff_date)
 
-                for basename in self._database.find_old_backups(
+                for base_name in self._database.find_old_backups(
                         'incr', last_diff_date):
-                    self._delete_backup(basename)
+                    self.delete_archive_files(base_name)
 
         elif backup_type == 'diff':
             print('\ndiff: removing incr prior to last diff (%s)\n' % \
                 prior_date)
 
-            for basename in self._database.find_old_backups(
+            for base_name in self._database.find_old_backups(
                     'incr', prior_date):
-                self._delete_backup(basename)
+                self.delete_archive_files(base_name)
         elif backup_type == 'incr':
             return
 
         self.remove_empty_directories()
 
 
-    def _delete_backup(self, basename):
-        print('deleting backup "{}"'.format(basename))
+    def delete_archive_files(self, base_name):
+        """
+        Delete archive files in a backup directory (specified by base
+        name).
 
-        base_directory = os.path.join(self.backup_directory, basename)
-        for backup_file in glob.glob(os.path.join(base_directory, '*.dar')):
-            os.unlink(backup_file)
-        for checksum_file in glob.glob(os.path.join(base_directory, '*.dar.md5')):
-            os.unlink(checksum_file)
+        :param base_name:
+            base name (e.g. "2014-12-31_1937-full")
+        :type base_name:
+            String
+
+        :rtype:
+            None
+
+        """
+        print('deleting backup "{}"'.format(base_name))
+
+        # calculate base directory from base name
+        base_directory = self.get_base_directory(base_name)
+
+        # collect files that are to be deleted
+        files_to_delete = []
+
+        # mark archive files for deletion
+        archive_files = glob.glob(os.path.join(base_directory, '*.dar'))
+        files_to_delete.extend(archive_files)
+
+        # mark checksum files for deletion
+        checksum_files = glob.glob(os.path.join(base_directory, '*.dar.md5'))
+        files_to_delete.extend(checksum_files)
+
+        # delete marked files
+        for marked_file in sorted(files_to_delete):
+            os.unlink(marked_file)
 
 
-    def _get_backup_size(self, base_file):
+    def get_backup_size(self, base_name):
         """
         Return number of archive files and their accumulated file size for
         an existing backup.
 
-        :param base_file:
-            path name of base file (/backup_directory/date_format/date_format)
-        :type base_file:
+        :param base_name:
+            base name (e.g. "2014-12-31_1937-full")
+        :type base_name:
             String
 
         :returns:
@@ -495,6 +559,9 @@ class BackupRunner:
 
         # initialise file size of archive files
         archive_size = 0
+
+        # calculate base file from base name
+        base_file = self.get_base_file(base_name)
 
         # get list of archive file names
         archive_files = glob.glob('{}.*.dar'.format(base_file))
