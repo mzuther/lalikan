@@ -74,17 +74,17 @@ class BackupRunner:
             # display time to next scheduled full backup
             print()
             print('next "full" in  {:8.3f} days  ({:8.3f})'.format(
-                -self._database.days_overdue(0),
+                -self._database.days_overdue(self.full),
                 self._database.interval_full))
 
             # display time to next scheduled differential backup
             print('next "diff" in  {:8.3f} days  ({:8.3f})'.format(
-                -self._database.days_overdue(1),
+                -self._database.days_overdue(self.diff),
                 self._database.interval_diff))
 
             # display time to next scheduled incremental backup
             print('next "incr" in  {:8.3f} days  ({:8.3f})'.format(
-                -self._database.days_overdue(2),
+                -self._database.days_overdue(self.incr),
                 self._database.interval_incr))
 
             # check whether a backup is necessary
@@ -105,8 +105,8 @@ class BackupRunner:
             # if a backup is forced, set backup type to "incremental"
             # (but do not update backup level name, so the user can
             # see that the backup has been forced)
-            elif backup_needed < 0:
-                backup_needed = 2
+            elif backup_needed == self.incr_forced:
+                backup_needed = self.incr
 
             # notify user that backup creation is starting
             self.notify_user('Creating {} backup...'.format(level_name),
@@ -121,6 +121,62 @@ class BackupRunner:
         finally:
             # execute post-run command (regardless of errors)
             self.execute_command('post-run command', self.post_run_command)
+
+
+    @property
+    def full(self):
+        """
+        Attribute: internal index for full backups
+
+        :returns:
+            index for full backups
+        :rtype:
+            integer
+
+        """
+        return self._database.full
+
+
+    @property
+    def diff(self):
+        """
+        Attribute: internal index for differential backups
+
+        :returns:
+            index for differential backups
+        :rtype:
+            integer
+
+        """
+        return self._database.diff
+
+
+    @property
+    def incr(self):
+        """
+        Attribute: internal index for incremental backups
+
+        :returns:
+            index for incremental backups
+        :rtype:
+            integer
+
+        """
+        return self._database.incr
+
+
+    @property
+    def incr_forced(self):
+        """
+        Attribute: internal index for forced incremental backups
+
+        :returns:
+            index for forced incremental backups
+        :rtype:
+            integer
+
+        """
+        return self._database.incr_forced
 
 
     @property
@@ -221,28 +277,6 @@ class BackupRunner:
         return self._database.get_level_name(backup_level)
 
 
-    def remove_empty_directories(self):
-        """
-        Remove empty directories from backup filetree.
-
-        :rtype:
-            None
-
-        """
-        # loop over subdirectories of backup directory
-        for root, dirs, files in os.walk(self.backup_directory, topdown=False):
-            # do not remove root directory
-            if root != self.backup_directory:
-                continue
-
-            # directory is empty
-            if len(dirs) == 0 and len(files) == 0:
-                print('removing empty directory "{}"'.format(root))
-
-                # delete directory
-                os.rmdir(root)
-
-
     def execute_command(self, message, command):
         """
         Execute command from shell.
@@ -335,37 +369,37 @@ class BackupRunner:
         print()
 
         # full backup
-        if backup_level == 0:
+        if backup_level == self.full:
             postfix = self._database.postfix_full
             reference_base = 'none'
             reference_option = ''
         # differential backup
-        elif backup_level == 1:
+        elif backup_level == self.diff:
             postfix = self._database.postfix_diff
-            reference_base = self._database.name_of_last_backup(0)
+            reference_base = self._database.last_existing_backup(self.full).name
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
                 self.backup_directory, reference_base, reference_catalog))
         # incremental backup
-        elif backup_level == 2:
+        elif backup_level == self.incr:
             postfix = self._database.postfix_incr
-            last_full = self._database.days_since_last_backup(0)
-            last_diff = self._database.days_since_last_backup(1)
-            last_incr = self._database.days_since_last_backup(2)
+            last_full = self._database.days_since_last_backup(self.full)
+            last_diff = self._database.days_since_last_backup(self.diff)
+            last_incr = self._database.days_since_last_backup(self.incr)
 
             newest_age = last_full
-            newest_type = 0
+            newest_type = self.full
 
             if last_diff >= 0 and last_diff < newest_age:
                 newest_age = last_diff
-                newest_type = 1
+                newest_type = self.diff
 
             if last_incr >= 0 and last_incr < newest_age:
                 newest_age = last_incr
-                newest_type = 2
+                newest_type = self.incr
 
-            reference_base = self._database.name_of_last_backup(newest_type)
+            reference_base = self._database.last_existing_backup(newest_type).name
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
@@ -475,7 +509,7 @@ class BackupRunner:
         self._database.check_backup_level(backup_level)
 
         # nothing to do for incremental backups
-        if backup_level == 2:
+        if backup_level == self.incr:
             return
 
         # get all existing backups of backup level
@@ -492,7 +526,7 @@ class BackupRunner:
         previous_date = previous_backup.date
 
         # full backup; please remember to never delete these!
-        if backup_level == 0:
+        if backup_level == self.full:
             print()
             print('removing "diff" and "incr" prior to previous ' +
                   '"full" ({})'.format(previous_date))
@@ -500,16 +534,18 @@ class BackupRunner:
 
             # delete differential archive files prior to previous full
             # backup
-            for base_name in self.find_existing_backups(1, previous_date):
+            for base_name in self.find_existing_backups(
+                    self.diff, previous_date):
                 self.delete_archive_files(base_name)
 
             # delete incremental archive files prior to previous full
             # backup
-            for base_name in self.find_existing_backups(2, previous_date):
+            for base_name in self.find_existing_backups(
+                    self.incr, previous_date):
                 self.delete_archive_files(base_name)
 
             # get all remaining differential backups
-            existing_diffs = self.find_existing_backups(1, None)
+            existing_diffs = self.find_existing_backups(self.diff, None)
 
             # are any differential backups left?
             if existing_diffs:
@@ -527,11 +563,11 @@ class BackupRunner:
                 # delete incremental archive files prior to current
                 # differential backup
                 for base_name in self.find_existing_backups(
-                        2, current_diff_date):
+                        self.incr, current_diff_date):
                     self.delete_archive_files(base_name)
 
         # differential backup
-        elif backup_level == 1:
+        elif backup_level == self.diff:
             print()
             print('removing "incr" prior to previous "diff" ({})'.format(
                 previous_date))
@@ -539,7 +575,8 @@ class BackupRunner:
 
             # delete incremental archive files prior to previous
             # differential backup
-            for base_name in self.find_existing_backups(2, previous_date):
+            for base_name in self.find_existing_backups(
+                    self.incr, previous_date):
                 self.delete_archive_files(base_name)
 
         # so far, only archive files have been deleted; we still have
@@ -580,6 +617,28 @@ class BackupRunner:
         # delete marked files
         for marked_file in sorted(files_to_delete):
             os.unlink(marked_file)
+
+
+    def remove_empty_directories(self):
+        """
+        Remove empty directories from backup filetree.
+
+        :rtype:
+            None
+
+        """
+        # loop over subdirectories of backup directory
+        for root, dirs, files in os.walk(self.backup_directory, topdown=False):
+            # do not remove root directory
+            if root != self.backup_directory:
+                continue
+
+            # directory is empty
+            if not dirs and not files:
+                print('removing empty directory "{}"'.format(root))
+
+                # delete directory
+                os.rmdir(root)
 
 
     def get_backup_size(self, base_name):

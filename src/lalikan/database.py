@@ -58,7 +58,7 @@ class BackupDatabase:
         # 0: full backup, contains everything
         # 1: differential, contains all changes since last full backup
         # 2: incremental, contains all changes since last backup
-        self._backup_levels = (0, 1, 2)
+        self._backup_levels = (self.full, self.diff, self.incr)
 
         # backup file name postfixes time for all backup levels
         self._postfixes = ('full', 'diff', 'incr')
@@ -112,6 +112,62 @@ class BackupDatabase:
 
         # return decorated function
         return wrapper
+
+
+    @property
+    def full(self):
+        """
+        Attribute: internal index for full backups
+
+        :returns:
+            index for full backups
+        :rtype:
+            integer
+
+        """
+        return 0
+
+
+    @property
+    def diff(self):
+        """
+        Attribute: internal index for differential backups
+
+        :returns:
+            index for differential backups
+        :rtype:
+            integer
+
+        """
+        return 1
+
+
+    @property
+    def incr(self):
+        """
+        Attribute: internal index for incremental backups
+
+        :returns:
+            index for incremental backups
+        :rtype:
+            integer
+
+        """
+        return 2
+
+
+    @property
+    def incr_forced(self):
+        """
+        Attribute: internal index for forced incremental backups
+
+        :returns:
+            index for forced incremental backups
+        :rtype:
+            integer
+
+        """
+        return -1
 
 
     @property
@@ -260,7 +316,7 @@ class BackupDatabase:
             String
 
         """
-        return self._postfixes[0]
+        return self._postfixes[self.full]
 
 
     @property
@@ -274,7 +330,7 @@ class BackupDatabase:
             String
 
         """
-        return self._postfixes[1]
+        return self._postfixes[self.diff]
 
 
     @property
@@ -288,7 +344,7 @@ class BackupDatabase:
             String
 
         """
-        return self._postfixes[2]
+        return self._postfixes[self.incr]
 
 
     @property
@@ -392,9 +448,12 @@ class BackupDatabase:
         """
         if backup_level is None:
             return 'none'
-        elif backup_level < 0:
+        elif backup_level == self.incr_forced:
             return 'forced incremental'
         else:
+            # assert valid backup level
+            self.check_backup_level(backup_level)
+
             return ('full', 'differential', 'incremental')[backup_level]
 
 
@@ -463,9 +522,9 @@ class BackupDatabase:
 
         """
         # check backup level
-        if backup_level == 1:
+        if backup_level == self.diff:
             interval = datetime.timedelta(self.interval_diff)
-        elif backup_level == 2:
+        elif backup_level == self.incr:
             interval = datetime.timedelta(self.interval_incr)
         else:
             raise ValueError(
@@ -528,7 +587,7 @@ class BackupDatabase:
 
         # store upcoming "full" backup
         new_backup = lalikan.properties.BackupProperties(
-            current_start_time, 0)
+            current_start_time, self.full)
         schedule = [new_backup]
 
         # calculate previous "full" backup
@@ -537,7 +596,7 @@ class BackupDatabase:
         # store previous "full" backup (if valid)
         if current_start_time >= self.start_time:
             new_backup = lalikan.properties.BackupProperties(
-                current_start_time, 0)
+                current_start_time, self.full)
 
             # store at the beginning of the list
             schedule.insert(0, new_backup)
@@ -545,10 +604,10 @@ class BackupDatabase:
         # found "full" backup prior to given date
         if len(schedule) > 1:
             # fill schedule with "diff" backups
-            schedule = self._fill_schedule(schedule, 1)
+            schedule = self._fill_schedule(schedule, self.diff)
 
             # fill schedule with "incr" backups
-            schedule = self._fill_schedule(schedule, 2)
+            schedule = self._fill_schedule(schedule, self.incr)
 
         # return schedule
         return schedule
@@ -687,7 +746,7 @@ class BackupDatabase:
         existing_backups = self.find_existing_backups(-1, self.point_in_time)
 
         # no backups were found
-        if len(existing_backups) == 0:
+        if not existing_backups:
             return lalikan.properties.BackupProperties(None, backup_level)
 
         # get backup levels that will be accepted as substitute for
@@ -866,7 +925,7 @@ class BackupDatabase:
 
         # force backup, but only after schedule begins
         if force_backup and self.point_in_time >= self.start_time:
-            return -1
+            return self.incr_forced
 
         # no backup necessary
         return None
