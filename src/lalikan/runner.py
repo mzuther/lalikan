@@ -73,17 +73,17 @@ class BackupRunner:
 
             # display time to next scheduled full backup
             print()
-            print('next full in  {:8.3f} days  ({:8.3f})'.format(
+            print('next "full" in  {:8.3f} days  ({:8.3f})'.format(
                 -self._database.days_overdue(0),
                 self._database.interval_full))
 
             # display time to next scheduled differential backup
-            print('next diff in  {:8.3f} days  ({:8.3f})'.format(
+            print('next "diff" in  {:8.3f} days  ({:8.3f})'.format(
                 -self._database.days_overdue(1),
                 self._database.interval_diff))
 
             # display time to next scheduled incremental backup
-            print('next incr in  {:8.3f} days  ({:8.3f})'.format(
+            print('next "incr" in  {:8.3f} days  ({:8.3f})'.format(
                 -self._database.days_overdue(2),
                 self._database.interval_incr))
 
@@ -432,6 +432,32 @@ class BackupRunner:
         self.delete_old_backups(backup_level)
 
 
+    def find_existing_backups(self, filter_level=-1, prior_to=None):
+        """
+        Find existing backups.  The result can be filtered to match
+        certain backup levels and to return backups prior to (or
+        exactly at) a given point in time.
+
+        :param filter_level:
+            filter all backup levels other than this one (0 to 2); -1
+            passes all backup levels
+        :type filter_level:
+            integer
+
+        :param prior_to:
+            given point in time
+        :type prior_to:
+            :py:mod:`datetime.datetime` or None
+
+        :returns:
+            list of existing backups, sorted by date and time
+        :rtype:
+            list of lalikan.properties.BackupProperties
+
+        """
+        return self._database.find_existing_backups(filter_level, prior_to)
+
+
     def delete_old_backups(self, backup_level):
         """
         Delete dispensable backups according to certain rules.
@@ -448,60 +474,76 @@ class BackupRunner:
         # assert valid backup level
         self._database.check_backup_level(backup_level)
 
-        # get existing backups of same backup level???
-        existing_backups = self._database.find_existing_backups(
-            backup_level, None)
-
-        if len (existing_backups) < 2:
+        # nothing to do for incremental backups
+        if backup_level == 2:
             return
 
-        # get date of previous backup of same type
-        prior_date = existing_backups[-2].date
+        # get all existing backups of backup level
+        existing_backups = self.find_existing_backups(backup_level, None)
+
+        # zero or one backups: no dispensable backups, so return
+        if len (existing_backups) <= 1:
+            return
+
+        # get previous (next to last) backup of backup type
+        previous_backup = existing_backups[-2]
+
+        # get date of previous backup
+        previous_date = previous_backup.date
 
         # full backup; please remember to never delete these!
         if backup_level == 0:
-            print('\nfull: removing diff and incr prior to last full (%s)\n' % \
-                prior_date)
+            print()
+            print('removing "diff" and "incr" prior to previous ' +
+                  '"full" ({})'.format(previous_date))
+            print()
 
-            for base_name in self._database.find_existing_backups(
-                    2, prior_date):
+            # delete differential archive files prior to previous full
+            # backup
+            for base_name in self.find_existing_backups(1, previous_date):
                 self.delete_archive_files(base_name)
 
-            for base_name in self._database.find_existing_backups(
-                    1, prior_date):
+            # delete incremental archive files prior to previous full
+            # backup
+            for base_name in self.find_existing_backups(2, previous_date):
                 self.delete_archive_files(base_name)
 
-            # separate check for old "diff" backups
-            existing_backups_diff = self._database.find_existing_backups(
-                1, None)
+            # get all remaining differential backups
+            existing_diffs = self.find_existing_backups(1, None)
 
-            if len (existing_backups) > 1 and len(existing_backups_diff) > 0:
-                # get date of last full backup
-                last_full_date = existing_backups[-1].date
+            # are any differential backups left?
+            if existing_diffs:
+                # get current differential backup
+                current_diff = existing_diffs[-1]
 
-                # get date of last "diff" backup
-                last_diff_date = existing_backups_diff[-1].date
+                # get date of current differential backup
+                current_diff_date = current_diff.date
 
-                print('\nfull: removing incr prior to last diff (%s)\n' % \
-                    last_diff_date)
+                print()
+                print('removing "incr" prior to current "diff" ({})'.format(
+                    current_diff_date))
+                print()
 
-                for base_name in self._database.find_existing_backups(
-                        2, last_diff_date):
+                # delete incremental archive files prior to current
+                # differential backup
+                for base_name in self.find_existing_backups(
+                        2, current_diff_date):
                     self.delete_archive_files(base_name)
 
         # differential backup
         elif backup_level == 1:
-            print('\ndiff: removing incr prior to last diff (%s)\n' % \
-                prior_date)
+            print()
+            print('removing "incr" prior to previous "diff" ({})'.format(
+                previous_date))
+            print()
 
-            for base_name in self._database.find_existing_backups(
-                    2, prior_date):
+            # delete incremental archive files prior to previous
+            # differential backup
+            for base_name in self.find_existing_backups(2, previous_date):
                 self.delete_archive_files(base_name)
 
-        # incremental backup
-        elif backup_level == 2:
-            return
-
+        # so far, only archive files have been deleted; we still have
+        # to remove the remaining empty directories
         self.remove_empty_directories()
 
 
