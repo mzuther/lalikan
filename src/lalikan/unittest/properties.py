@@ -20,7 +20,6 @@
 # Thank you for using free software!
 
 import datetime
-import os.path
 import unittest
 
 from lalikan.properties import BackupProperties

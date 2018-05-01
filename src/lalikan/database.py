@@ -673,7 +673,8 @@ class BackupDatabase:
         """
         # get subdirectories in backup directory
         subdirectories = [f for f in os.listdir(self.backup_directory)
-                       if os.path.isdir(os.path.join(self.backup_directory, f))]
+                          if os.path.isdir(
+                              os.path.join(self.backup_directory, f))]
 
         # look for existing backups
         existing_backups = []
@@ -715,12 +716,12 @@ class BackupDatabase:
 
         # optionally filter backups by level
         if filter_level in self._backup_levels:
-            existing_backups = [backup for backup in existing_backups \
+            existing_backups = [backup for backup in existing_backups
                                 if backup.level == filter_level]
 
         # optionally filter backups by date
         if prior_to:
-            existing_backups = [backup for backup in existing_backups \
+            existing_backups = [backup for backup in existing_backups
                                 if backup.date <= prior_to]
 
         # return result

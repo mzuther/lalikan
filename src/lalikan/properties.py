@@ -53,7 +53,7 @@ class BackupProperties:
         else:
             self._date_string = 'None'
 
-        if not level in (0, 1, 2):
+        if level not in (0, 1, 2):
             raise ValueError('second parameter must be one of "0", "1" or '
                              '"2".')
 

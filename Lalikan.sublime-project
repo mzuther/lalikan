@@ -12,7 +12,7 @@
         "linters":
         {
             "flake8": {
-            	"args": "--ignore=E303,E402",
+            	"args": "--ignore=E303,E241,E402",
             }
         }
     }

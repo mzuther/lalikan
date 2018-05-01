@@ -58,7 +58,8 @@ class BackupRunner:
     """
     def __init__(self, settings, section, force_backup):
         self.section = section
-        self._database = lalikan.database.BackupDatabase(settings, self.section)
+        self._database = lalikan.database.BackupDatabase(
+            settings, self.section)
 
         try:
             # execute pre-run command
@@ -376,7 +377,8 @@ class BackupRunner:
         # differential backup
         elif backup_level == self.diff:
             postfix = self._database.postfix_diff
-            reference_base = self._database.last_existing_backup(self.full).name
+            reference_base = self._database.last_existing_backup(
+                self.full).name
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
@@ -399,7 +401,8 @@ class BackupRunner:
                 newest_age = last_incr
                 newest_type = self.incr
 
-            reference_base = self._database.last_existing_backup(newest_type).name
+            reference_base = self._database.last_existing_backup(
+                newest_type).name
             reference_timestamp = reference_base.rsplit('-', 1)[0]
             reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
             reference_option = '--ref ' + self.sanitise_path(os.path.join(
@@ -439,7 +442,7 @@ class BackupRunner:
             self.notify_user('dar exited with code %d.' % retcode,
                              self.ERROR)
 
-        self.notify_user('%(files)d file(s), %(size)s\n' % \
+        self.notify_user('%(files)d file(s), %(size)s\n' %
                          self.get_backup_size(base_name),
                          self.INFORMATION)
 
@@ -516,7 +519,7 @@ class BackupRunner:
         existing_backups = self.find_existing_backups(backup_level, None)
 
         # zero or one backups: no dispensable backups, so return
-        if len (existing_backups) <= 1:
+        if len(existing_backups) <= 1:
             return
 
         # get previous (next to last) backup of backup type

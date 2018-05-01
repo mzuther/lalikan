@@ -36,7 +36,8 @@ class Settings:
             None
 
         """
-        # common application copyrights and information (only set here, private)
+        # common application copyrights and information (only set here,
+        # private)
         self._application = 'Lalikan.py'
         self._cmd_line = 'Lalikan'
         self._version = '0.17'
@@ -198,8 +199,8 @@ Thank you for using free software!"""
         """
         # tuple of option names that may be queried (as a security measure)
         valid_option_names = ('application', 'cmd_line', 'version',
-                                'years', 'authors', 'license_short',
-                                'license_long', 'description')
+                              'years', 'authors', 'license_short',
+                              'license_long', 'description')
 
         if option not in valid_option_names:
             raise ValueError('option "{0}" not found'.format(option))

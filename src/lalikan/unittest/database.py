@@ -79,7 +79,7 @@ class TestBackupDatabase(unittest.TestCase):
 
             if has_catalog:
                 create_file(os.path.join(
-                        full_path, timestamp + '-catalog.01.dar'))
+                    full_path, timestamp + '-catalog.01.dar'))
 
 
     def test_check_backup_level(self):
@@ -630,8 +630,8 @@ full:  2012-01-20 20:00:00
 
             self.assertListEqual(
                 database.find_existing_backups(all_levels, datetime.datetime(
-                        year=2012, month=1, day=2,
-                        hour=2, minute=0)),
+                    year=2012, month=1, day=2,
+                    hour=2, minute=0)),
                 [])
 
             self.assertListEqual(
