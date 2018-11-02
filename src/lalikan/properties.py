@@ -23,25 +23,24 @@ import datetime
 
 
 class BackupProperties:
-    """
-    Initialise backup properties.
-
-    :param date:
-        start time of backup (or "None" to signify that a backup of the
-        given level does not exist)
-    :type date:
-        :py:mod:`datetime.datetime` or None
-
-    :param level:
-        backup level (0 to 2)
-    :type level:
-        integer
-
-    :rtype:
-        None
-
-    """
     def __init__(self, date, level):
+        """
+        Initialise backup properties.
+
+        :param date:
+            start time of backup (or "None" to signify that a backup of the
+            given level does not exist)
+        :type date:
+            :py:mod:`datetime.datetime` or None
+
+        :param level:
+            backup level (0 to 2)
+        :type level:
+            integer
+        :rtype:
+            None
+
+        """
         if not isinstance(date, datetime.datetime) and date is not None:
             raise ValueError('first parameter must be either '
                              '"datetime.datetime" or "None".')

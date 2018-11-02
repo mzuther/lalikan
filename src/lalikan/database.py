@@ -29,24 +29,25 @@ import lalikan.properties
 
 
 class BackupDatabase:
-    """
-    Initialise database.
-
-    :param settings:
-        backup settings and application information
-    :type settings:
-        lalikan.settings
-
-    :param section:
-        section of backup settings to use (such as *Workstation* or *Server*)
-    :type section:
-        String
-
-    :rtype:
-        None
-
-    """
     def __init__(self, settings, section):
+        """
+        Initialise database.
+
+        :param settings:
+            backup settings and application information
+        :type settings:
+            lalikan.settings
+
+        :param section:
+            section of backup settings to use (such as *Workstation* or
+            *Server*)
+        :type section:
+            String
+
+        :rtype:
+            None
+
+        """
         # Lalikan settings (such as backup directory)
         self._settings = settings
 

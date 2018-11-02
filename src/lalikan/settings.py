@@ -28,6 +28,8 @@ class Settings:
     available.
 
     """
+
+
     def __init__(self, config_filename):
         """
         Initialise user settings and application information.

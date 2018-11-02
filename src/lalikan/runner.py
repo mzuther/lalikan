@@ -34,29 +34,30 @@ class BackupRunner:
     WARNING = 'warning'
     ERROR = 'error'
 
-    """
-    Initialise backup runner.
 
-    :param settings:
-        backup settings and application information
-    :type settings:
-        lalikan.settings
-
-    :param section:
-        section of backup settings to use (such as *Workstation* or *Server*)
-    :type section:
-        String
-
-    :param force_backup:
-        force backup, regardless of whether it is scheduled
-    :type force_backup:
-        Boolean
-
-    :rtype:
-        None
-
-    """
     def __init__(self, settings, section, force_backup):
+        """
+        Initialise backup runner.
+
+        :param settings:
+            backup settings and application information
+        :type settings:
+            lalikan.settings
+
+        :param section:
+            section of backup settings to use (such as *Workstation* or *Server*)
+        :type section:
+            String
+
+        :param force_backup:
+            force backup, regardless of whether it is scheduled
+        :type force_backup:
+            Boolean
+
+        :rtype:
+            None
+
+        """
         self.section = section
         self._database = lalikan.database.BackupDatabase(
             settings, self.section)
