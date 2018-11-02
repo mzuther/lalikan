@@ -127,6 +127,22 @@ class BackupProperties:
         """
         return self._date
 
+
+    @property
+    def base_name(self):
+        """
+        Attribute: base name.
+
+        :returns:
+            base name consisting of formatted date and backup suffix
+            (e.g. "2014-12-31_1937-full")
+        :rtype:
+            String
+
+        """
+        return '{}-{}'.format(self.date_string, self.suffix)
+
+
     @property
     def date_string(self):
         """

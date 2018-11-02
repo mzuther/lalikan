@@ -76,6 +76,8 @@ class TestBackupDatabase(unittest.TestCase):
         if has_files:
             create_file(os.path.join(full_path, dirname + '.01.dar'))
             create_file(os.path.join(full_path, dirname + '.01.dar.md5'))
+            create_file(os.path.join(full_path, dirname + '.01.dar.sha1'))
+            create_file(os.path.join(full_path, dirname + '.01.dar.sha512'))
 
             if has_catalog:
                 create_file(os.path.join(

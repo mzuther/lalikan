@@ -257,7 +257,34 @@ class BackupRunner:
             String
 
         """
-        return os.path.join(self.get_base_directory(), base_name)
+        return os.path.join(self.get_base_directory(base_name), base_name)
+
+
+    def get_catalog_file(self, base_name):
+        """
+        Calculate catalog file from base name.
+
+        :param base_name:
+            base name (e.g. "2014-12-31_1937-full")
+        :type base_name:
+            String
+
+        :returns:
+            catalog file (e.g. "/backup_directory/base_name/date-catalog")
+        :rtype:
+            String
+
+        """
+        # get base file name
+        base_file = self.get_base_file(base_name)
+
+        # get rid of backup suffix
+        catalog_file = base_file.rsplit('-', 1)[0]
+
+        # add catalog suffix
+        catalog_file += '-catalog'
+
+        return catalog_file
 
 
     def get_level_name(self, backup_level):
@@ -365,48 +392,77 @@ class BackupRunner:
 
 
     def create_backup(self, backup_level):
-        return  # DEBUG
+        """
+        Create backup of a certain backup level.
 
-        print()
+        :param backup_level:
+            backup level (0 to 2)
+        :type backup_level:
+            integer
+
+        :returns:
+            None
+
+        """
+        # assert valid backup level
+        self._database.check_backup_level(backup_level)
 
         # full backup
         if backup_level == self.full:
+            # store postfix
             postfix = self._database.postfix_full
-            reference_base = 'none'
+
+            # no reference for full backup
             reference_option = ''
         # differential backup
         elif backup_level == self.diff:
+            # store postfix
             postfix = self._database.postfix_diff
-            reference_base = self._database.last_existing_backup(
-                self.full).name
-            reference_timestamp = reference_base.rsplit('-', 1)[0]
-            reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
-            reference_option = '--ref ' + self.sanitise_path(os.path.join(
-                self.backup_directory, reference_base, reference_catalog))
+
+            # get reference backup (latest backup of type "full")
+            reference_backup = self._database.last_existing_backup(self.full)
+
+            # get catalog name of reference backup
+            reference_catalog = self.get_catalog_file(
+                reference_backup.base_name)
+
+            # format reference option for DAR
+            reference_option = '--ref ' + self.sanitise_path(reference_catalog)
         # incremental backup
         elif backup_level == self.incr:
+            # store postfix
             postfix = self._database.postfix_incr
-            last_full = self._database.days_since_last_backup(self.full)
-            last_diff = self._database.days_since_last_backup(self.diff)
-            last_incr = self._database.days_since_last_backup(self.incr)
 
-            newest_age = last_full
-            newest_type = self.full
+            # get number of days since a backup
+            days_since_full = self._database.days_overdue(self.full)
+            days_since_diff = self._database.days_overdue(self.diff)
+            days_since_incr = self._database.days_overdue(self.incr)
 
-            if last_diff >= 0 and last_diff < newest_age:
-                newest_age = last_diff
-                newest_type = self.diff
+            # positive numbers signify that a backup is due
+            diff_is_due = (days_since_diff >= 0)
+            incr_is_due = (days_since_incr >= 0)
 
-            if last_incr >= 0 and last_incr < newest_age:
-                newest_age = last_incr
-                newest_type = self.incr
+            days_since_backup = days_since_full
+            current_level = self.full
 
-            reference_base = self._database.last_existing_backup(
-                newest_type).name
-            reference_timestamp = reference_base.rsplit('-', 1)[0]
-            reference_catalog = '{}-{}'.format(reference_timestamp, 'catalog')
-            reference_option = '--ref ' + self.sanitise_path(os.path.join(
-                self.backup_directory, reference_base, reference_catalog))
+            if diff_is_due and days_since_diff < days_since_backup:
+                days_since_backup = days_since_diff
+                current_level = self.diff
+
+            if incr_is_due and days_since_incr < days_since_backup:
+                days_since_backup = days_since_incr
+                current_level = self.incr
+
+            # get reference backup
+            reference_backup = self._database.last_existing_backup(
+                current_level)
+
+            # get catalog name of reference backup
+            reference_catalog = self.get_catalog_file(
+                reference_backup.base_name)
+
+            # format reference option for DAR
+            reference_option = '--ref ' + self.sanitise_path(reference_catalog)
 
         now = datetime.datetime.now()
 
@@ -419,6 +475,7 @@ class BackupRunner:
         catalog_name = '%s-%s' % (timestamp, "catalog")
         catalog_file = os.path.join(base_directory, catalog_name)
 
+        print()
         print('basefile: %s\n' % base_file)
 
         os.mkdir(base_directory)
@@ -613,8 +670,16 @@ class BackupRunner:
         archive_files = glob.glob(os.path.join(base_directory, '*.dar'))
         files_to_delete.extend(archive_files)
 
-        # mark checksum files for deletion
+        # mark MD5 checksum files for deletion
         checksum_files = glob.glob(os.path.join(base_directory, '*.dar.md5'))
+        files_to_delete.extend(checksum_files)
+
+        # mark SHA1 checksum files for deletion
+        checksum_files = glob.glob(os.path.join(base_directory, '*.dar.sha1'))
+        files_to_delete.extend(checksum_files)
+
+        # mark SHA512 checksum files for deletion
+        checksum_files = glob.glob(os.path.join(base_directory, '*.dar.sha512'))
         files_to_delete.extend(checksum_files)
 
         # delete marked files
