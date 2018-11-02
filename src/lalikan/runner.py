@@ -45,7 +45,8 @@ class BackupRunner:
             lalikan.settings
 
         :param section:
-            section of backup settings to use (such as *Workstation* or *Server*)
+            section of backup settings to use (such as *Workstation* or
+            *Server*)
         :type section:
             String
 
@@ -668,19 +669,23 @@ class BackupRunner:
         files_to_delete = []
 
         # mark archive files for deletion
-        archive_files = glob.glob(os.path.join(base_directory, '*.dar'))
+        archive_files = glob.glob(
+            os.path.join(base_directory, '*.dar'))
         files_to_delete.extend(archive_files)
 
         # mark MD5 checksum files for deletion
-        checksum_files = glob.glob(os.path.join(base_directory, '*.dar.md5'))
+        checksum_files = glob.glob(
+            os.path.join(base_directory, '*.dar.md5'))
         files_to_delete.extend(checksum_files)
 
         # mark SHA1 checksum files for deletion
-        checksum_files = glob.glob(os.path.join(base_directory, '*.dar.sha1'))
+        checksum_files = glob.glob(
+            os.path.join(base_directory, '*.dar.sha1'))
         files_to_delete.extend(checksum_files)
 
         # mark SHA512 checksum files for deletion
-        checksum_files = glob.glob(os.path.join(base_directory, '*.dar.sha512'))
+        checksum_files = glob.glob(
+            os.path.join(base_directory, '*.dar.sha512'))
         files_to_delete.extend(checksum_files)
 
         # delete marked files

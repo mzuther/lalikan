@@ -61,13 +61,6 @@ def print_header():
     print(name_and_version)
     print('=' * len(name_and_version))
 
-    # on Linux, check whether the script runs with superuser rights
-    if sys.platform == 'linux' and os.getuid() != 0:
-        print('You probably want to run this application with '
-              'superuser rights...')
-
-    print()
-
 
 def list_sections(message):
     """
@@ -208,13 +201,32 @@ if __name__ == '__main__':
         exit(1)
 
     # load Lalikan settings
-    settings = lalikan.settings.Settings('/etc/lalikan')
+    config_filename = '/etc/lalikan'
+    settings = lalikan.settings.Settings(config_filename)
 
     # parse command line
     section, force_backup = parse_command_line(settings)
 
     # print application name and version
     print_header()
+    print('configuration file: {}'.format(config_filename))
+    print()
+
+    # on Linux, check whether the script runs with superuser rights
+    if sys.platform == 'linux' and os.getuid() != 0:
+        box_width = 24
+        print(' ╔' + '═' * box_width + '╗')
+        print(' ║' + ' ' * box_width + '║')
+        print(' ║  YOU LACK SUPER POWER  ║')
+        print(' ║' + ' ' * box_width + '║')
+        print(' ║   Your backup may be   ║')
+        print(' ║   incomplete.  Maybe   ║')
+        print(' ║   there\'s no backup.   ║')
+        print(' ║' + ' ' * box_width + '║')
+        print(' ║   YOU\'VE BEEN WARNED   ║')
+        print(' ║' + ' ' * box_width + '║')
+        print(' ╚' + '═' * box_width + '╝')
+        print()
 
     # create backup for all sections
     if section is None:
