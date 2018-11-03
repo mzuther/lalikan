@@ -4,7 +4,7 @@
    =======
    Backup scheduler for Disk ARchive (DAR)
 
-   Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
+   Copyright (c) 2010-2018 Dr. Martin Zuther (http://www.mzuther.de/)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,7 +209,6 @@ if __name__ == '__main__':
 
     # print application name and version
     print_header()
-    print('configuration file: {}'.format(config_filename))
     print()
 
     # on Linux, check whether the script runs with superuser rights
@@ -262,4 +261,5 @@ if __name__ == '__main__':
         print()
         print('At least one error has occurred!')
         print()
+
         exit(1)

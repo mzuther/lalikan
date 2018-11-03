@@ -4,7 +4,7 @@
    =======
    Backup scheduler for Disk ARchive (DAR)
 
-   Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
+   Copyright (c) 2010-2018 Dr. Martin Zuther (http://www.mzuther.de/)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

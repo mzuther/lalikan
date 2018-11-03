@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2018 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,67 +63,7 @@ class BackupRunner:
         self._database = lalikan.database.BackupDatabase(
             settings, self.section)
 
-        try:
-            # execute pre-run command
-            self.execute_command('pre-run command', self.pre_run_command)
-
-            # if necessary, recursively create backup root directory
-            if not os.path.exists(self.backup_directory):
-                os.makedirs(self.backup_directory)
-
-            # remove empty directories in backup root directory
-            self.remove_empty_directories()
-
-            # display time to next scheduled full backup
-            print()
-            print('next "full" in  {:8.3f} days  ({:8.3f})'.format(
-                -self._database.days_overdue(self.full),
-                self._database.interval_full))
-
-            # display time to next scheduled differential backup
-            print('next "diff" in  {:8.3f} days  ({:8.3f})'.format(
-                -self._database.days_overdue(self.diff),
-                self._database.interval_diff))
-
-            # display time to next scheduled incremental backup
-            print('next "incr" in  {:8.3f} days  ({:8.3f})'.format(
-                -self._database.days_overdue(self.incr),
-                self._database.interval_incr))
-
-            # check whether a backup is necessary
-            backup_needed = self._database.backup_needed(force_backup)
-
-            # translate backup level to readable name
-            # (i.e. "incremental")
-            level_name = self.get_level_name(backup_needed)
-
-            # display backup level name
-            print()
-            print('backup type:  ' + level_name)
-            print()
-
-            # return if no backup is scheduled
-            if backup_needed is None:
-                return
-            # if a backup is forced, set backup type to "incremental"
-            # (but do not update backup level name, so the user can
-            # see that the backup has been forced)
-            elif backup_needed == self.incr_forced:
-                backup_needed = self.incr
-
-            # notify user that backup creation is starting
-            self.notify_user('Creating {} backup...'.format(level_name),
-                             self.INFORMATION)
-
-            # create backup
-            self.create_backup(backup_needed)
-
-            # notify user that backup creation has finished
-            self.notify_user('Finished.', self.INFORMATION)
-            print()
-        finally:
-            # execute post-run command (regardless of errors)
-            self.execute_command('post-run command', self.post_run_command)
+        self.create_backup(force_backup)
 
 
     @property
@@ -332,7 +272,7 @@ class BackupRunner:
             return
 
         # display message on command line
-        print('{}:  {}'.format(message, command))
+        print('{}  {}'.format(message, command))
 
         # run command; stdin is needed to be able to communicate with
         # the shell command (i.e. answer a question)
@@ -393,9 +333,86 @@ class BackupRunner:
         return retcode
 
 
-    def create_backup(self, backup_level):
+    def create_backup(self, force_backup):
         """
-        Create backup of a certain backup level.
+        Prepare and create backup.
+
+        :param force_backup:
+            force backup, regardless of whether it is scheduled
+        :type force_backup:
+            Boolean
+
+        :returns:
+            None
+
+        """
+        try:
+            # execute pre-run command
+            self.execute_command('pre-run: ', self.pre_run_command)
+
+            # if necessary, recursively create backup root directory
+            if not os.path.exists(self.backup_directory):
+                os.makedirs(self.backup_directory)
+
+            # remove empty directories in backup root directory
+            self.remove_empty_directories()
+
+            # display time to next scheduled full backup
+            print()
+            print('next "full" in  {:8.3f} days  ({:8.3f})'.format(
+                -self._database.days_overdue(self.full),
+                self._database.interval_full))
+
+            # display time to next scheduled differential backup
+            print('next "diff" in  {:8.3f} days  ({:8.3f})'.format(
+                -self._database.days_overdue(self.diff),
+                self._database.interval_diff))
+
+            # display time to next scheduled incremental backup
+            print('next "incr" in  {:8.3f} days  ({:8.3f})'.format(
+                -self._database.days_overdue(self.incr),
+                self._database.interval_incr))
+
+            # check whether a backup is necessary
+            needed_backup_level = self._database.needed_backup_level(
+                force_backup)
+
+            # translate backup level to readable name
+            # (i.e. "incremental")
+            level_name = self.get_level_name(needed_backup_level)
+
+            # display backup level name
+            print()
+            print('backup type:  ' + level_name)
+            print()
+
+            # return if no backup is scheduled
+            if needed_backup_level is None:
+                return
+            # if a backup is forced, set backup type to "incremental"
+            # (but do not update backup level name, so the user can
+            # see that the backup has been forced)
+            elif needed_backup_level == self.incr_forced:
+                needed_backup_level = self.incr
+
+            # notify user that backup creation is starting
+            self.notify_user('Creating {} backup...'.format(level_name),
+                             self.INFORMATION)
+
+            # run backup command
+            self.run_dar(needed_backup_level)
+
+            # notify user that backup creation has finished
+            self.notify_user('Finished.', self.INFORMATION)
+            print()
+        finally:
+            # execute post-run command (regardless of errors)
+            self.execute_command('post-run:', self.post_run_command)
+
+
+    def run_dar(self, backup_level):
+        """
+        Run DAR to create backup.
 
         :param backup_level:
             backup level (0 to 2)
@@ -422,23 +439,28 @@ class BackupRunner:
             postfix = self._database.postfix_diff
 
             # get reference backup (latest backup of type "full")
-            reference_backup = self._database.last_existing_backup(self.full)
+            reference_backup = self._database.last_existing_backup(
+                self.full)
 
             # get catalog name of reference backup
             reference_catalog = self.get_catalog_file(
                 reference_backup.base_name)
 
             # format reference option for DAR
-            reference_option = '--ref ' + self.sanitise_path(reference_catalog)
+            reference_option = '--ref ' + self.sanitise_path(
+                reference_catalog)
         # incremental backup
         elif backup_level == self.incr:
             # store postfix
             postfix = self._database.postfix_incr
 
             # get number of days since a backup
-            days_since_full = self._database.days_overdue(self.full)
-            days_since_diff = self._database.days_overdue(self.diff)
-            days_since_incr = self._database.days_overdue(self.incr)
+            days_since_full = self._database.days_overdue(
+                self.full)
+            days_since_diff = self._database.days_overdue(
+                self.diff)
+            days_since_incr = self._database.days_overdue(
+                self.incr)
 
             # positive numbers signify that a backup is due
             diff_is_due = (days_since_diff >= 0)
@@ -464,7 +486,8 @@ class BackupRunner:
                 reference_backup.base_name)
 
             # format reference option for DAR
-            reference_option = '--ref ' + self.sanitise_path(reference_catalog)
+            reference_option = '--ref ' + self.sanitise_path(
+                reference_catalog)
 
         now = datetime.datetime.now()
 
@@ -575,7 +598,8 @@ class BackupRunner:
             return
 
         # get all existing backups of backup level
-        existing_backups = self.find_existing_backups(backup_level, None)
+        existing_backups = self.find_existing_backups(
+            backup_level, None)
 
         # zero or one backups: no dispensable backups, so return
         if len(existing_backups) <= 1:
@@ -607,7 +631,8 @@ class BackupRunner:
                 self.delete_archive_files(base_name)
 
             # get all remaining differential backups
-            existing_diffs = self.find_existing_backups(self.diff, None)
+            existing_diffs = self.find_existing_backups(
+                self.diff, None)
 
             # are any differential backups left?
             if existing_diffs:
@@ -669,24 +694,20 @@ class BackupRunner:
         files_to_delete = []
 
         # mark archive files for deletion
-        archive_files = glob.glob(
-            os.path.join(base_directory, '*.dar'))
-        files_to_delete.extend(archive_files)
+        files_to_delete.extend(glob.glob(
+            os.path.join(base_directory, '*.dar')))
 
         # mark MD5 checksum files for deletion
-        checksum_files = glob.glob(
-            os.path.join(base_directory, '*.dar.md5'))
-        files_to_delete.extend(checksum_files)
+        files_to_delete.extend(glob.glob(
+            os.path.join(base_directory, '*.dar.md5')))
 
         # mark SHA1 checksum files for deletion
-        checksum_files = glob.glob(
-            os.path.join(base_directory, '*.dar.sha1'))
-        files_to_delete.extend(checksum_files)
+        files_to_delete.extend(glob.glob(
+            os.path.join(base_directory, '*.dar.sha1')))
 
         # mark SHA512 checksum files for deletion
-        checksum_files = glob.glob(
-            os.path.join(base_directory, '*.dar.sha512'))
-        files_to_delete.extend(checksum_files)
+        files_to_delete.extend(glob.glob(
+            os.path.join(base_directory, '*.dar.sha512')))
 
         # delete marked files
         for marked_file in sorted(files_to_delete):
@@ -704,7 +725,7 @@ class BackupRunner:
         # loop over subdirectories of backup directory
         for root, dirs, files in os.walk(self.backup_directory, topdown=False):
             # do not remove root directory
-            if root != self.backup_directory:
+            if root == self.backup_directory:
                 continue
 
             # directory is empty

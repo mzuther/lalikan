@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2018 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -824,7 +824,7 @@ full:  2012-01-20 20:00:00
             shutil.rmtree(backup_directory)
 
 
-    def test_backup_needed(self):
+    def test_needed_backup_level(self):
 
         def assertDaysOverdue(now, delta_full, delta_diff, delta_incr):
             database.point_in_time = now
@@ -890,12 +890,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 no_backup_needed)
 
             # backup forced before schedule begins
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 no_backup_needed)
 
 
@@ -926,12 +926,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.full)
 
             # backup forced when schedule begins
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.full)
 
 
@@ -964,12 +964,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.full)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.full)
 
 
@@ -1003,12 +1003,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 no_backup_needed)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.incr_forced)
 
 
@@ -1043,12 +1043,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 no_backup_needed)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.incr_forced)
 
 
@@ -1082,12 +1082,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.incr)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.incr)
 
 
@@ -1122,12 +1122,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.diff)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.diff)
 
 
@@ -1162,12 +1162,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 no_backup_needed)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.incr_forced)
 
 
@@ -1201,12 +1201,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.diff)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.diff)
 
 
@@ -1242,12 +1242,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.full)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.full)
 
 
@@ -1289,12 +1289,12 @@ full:  2012-01-20 20:00:00
 
             # normal backup ("full" after scheduled "incr")
             self.assertEqual(
-                database.backup_needed(not_forced),
+                database.needed_backup_level(not_forced),
                 database.diff)
 
             # backup forced
             self.assertEqual(
-                database.backup_needed(forced),
+                database.needed_backup_level(forced),
                 database.diff)
 
         finally:

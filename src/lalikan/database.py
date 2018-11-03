@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2015 Dr. Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2018 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -796,16 +796,17 @@ class BackupDatabase:
         # loop over current and previous backup levels
         for test_level in range(backup_level + 1):
             # do we need a backup of the tested backup level?
-            backup_needed = self._current_scheduled_backup(test_level)
+            needed_backup_level = self._current_scheduled_backup(
+                test_level)
 
             # return result for current backup level
             if test_level == backup_level:
-                return backup_needed
+                return needed_backup_level
             # return result if a backup is needed (otherwise, keep
             # running...)
-            elif backup_needed.is_valid and \
-                    backup_needed.date > last_existing_date:
-                return backup_needed
+            elif needed_backup_level.is_valid and \
+                    needed_backup_level.date > last_existing_date:
+                return needed_backup_level
 
 
     @memoize_function
@@ -903,7 +904,7 @@ class BackupDatabase:
         return days_overdue
 
 
-    def backup_needed(self, force_backup):
+    def needed_backup_level(self, force_backup):
         """
         Find out whether a backup is necessary for self.point_in_time.
 
