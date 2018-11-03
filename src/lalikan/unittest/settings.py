@@ -30,7 +30,7 @@ class TestSettings(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        self.version = '0.90'
+        self.version = '0.91'
         self.copyright_year = '2018'
 
         module_path = os.path.dirname(os.path.realpath(__file__))

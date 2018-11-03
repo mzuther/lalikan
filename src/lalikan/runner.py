@@ -23,7 +23,6 @@ import datetime
 import glob
 import os
 import subprocess
-import sys
 
 import lalikan.database
 import lalikan.settings
@@ -509,26 +508,26 @@ class BackupRunner:
         now = datetime.datetime.now()
 
         timestamp = now.strftime(self._database.date_format)
-        base_name = '%s-%s' % (timestamp, postfix)
+        base_name = '{}-{}'.format(timestamp, postfix)
 
         base_directory = self.get_base_directory(base_name)
         base_file = self.get_base_file(base_name)
 
-        catalog_name = '%s-%s' % (timestamp, "catalog")
+        catalog_name = '{}-{}'.format(timestamp, 'catalog')
         catalog_file = os.path.join(base_directory, catalog_name)
 
         print()
-        print('basefile: %s\n' % base_file)
+        print('basefile: {}\n'.format(base_file))
 
         os.mkdir(base_directory)
 
-        command = '%(dar)s --create %(base)s %(reference)s -Q %(options)s' % \
-                  {'dar': self._database.dar_path,
-                   'base': self.sanitise_path(base_file),
-                   'reference': reference_option,
-                   'options': self._database.dar_options}
+        command = '{dar} --create {base} {ref} -Q {options}'.format(
+            dar=self._database.dar_path,
+            base=self.sanitise_path(base_file),
+            ref=reference_option,
+            options=self._database.dar_options)
 
-        print('creating backup: %s\n' % command)
+        print('creating backup: {}\n'.format(command))
         retcode = self.execute_command_simple(command)
         print()
 
@@ -538,21 +537,21 @@ class BackupRunner:
         elif retcode > 0:
             # FIXME: maybe catch exceptions
             # FIXME: delete slices and directory
-            self.notify_user('dar exited with code %d.' % retcode,
+            self.notify_user('dar exited with code {}.'.format(retcode),
                              self.ERROR)
 
-        self.notify_user('%(files)d file(s), %(size)s\n' %
-                         self.get_backup_size(base_name),
-                         self.INFORMATION)
+        self.notify_user('{0[number_of_files]} file(s), {0[size]}\n'.format(
+            self.get_backup_size(base_name)),
+            self.INFORMATION)
 
         # isolate catalog
-        command = '%(dar)s --isolate %(base)s --ref %(reference)s -Q %(options)s' % \
-                  {'dar': self._database.dar_path,
-                   'base': self.sanitise_path(catalog_file),
-                   'reference': self.sanitise_path(base_file),
-                   'options': self._database.dar_options}
+        command = '{dar} --isolate {base} --ref {ref} -Q {options}'.format(
+            dar=self._database.dar_path,
+            base=self.sanitise_path(catalog_file),
+            ref=self.sanitise_path(base_file),
+            options=self._database.dar_options)
 
-        print('isolating catalog: %s\n' % command)
+        print('isolating catalog: {}\n'.format(command))
         retcode = self.execute_command_simple(command)
         print()
 
@@ -563,7 +562,7 @@ class BackupRunner:
         elif retcode > 0:
             # FIXME: maybe catch exceptions
             # FIXME: delete slices and directory
-            raise OSError('dar exited with code %d' % retcode)
+            raise OSError('dar exited with code {}'.format(retcode))
 
         self.delete_old_backups(backup_level)
 
@@ -804,7 +803,7 @@ class BackupRunner:
             filesize = '{} bytes'.format(archive_size)
 
         # return results
-        return {'files': number_of_files, 'size': filesize}
+        return {'number_of_files': number_of_files, 'size': filesize}
 
 
     def sanitise_path(self, path):

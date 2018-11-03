@@ -42,7 +42,7 @@ class Settings:
         # private)
         self._application = 'Lalikan.py'
         self._cmd_line = 'Lalikan'
-        self._version = '0.90'
+        self._version = '0.91'
         self._years = '2010-2018'
         self._authors = 'Dr. Martin Zuther'
         self._license_short = 'Licenced under the GPL version 3 (or later).'
