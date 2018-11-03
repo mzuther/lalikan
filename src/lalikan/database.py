@@ -403,6 +403,20 @@ class BackupDatabase:
 
 
     @property
+    def notification_command(self):
+        """
+        Attribute: command that is executed in the shell for notifications.
+
+        :returns:
+            shell command
+        :rtype:
+            String
+
+        """
+        return self._get_option('command_notification', True)
+
+
+    @property
     def pre_run_command(self):
         """
         Attribute: command that is executed in the shell before the backup

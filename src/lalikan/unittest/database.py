@@ -172,6 +172,10 @@ class TestBackupDatabase(unittest.TestCase):
             '%Y-%m-%d_%H%M')
 
         self.assertEqual(
+            database.notification_command,
+            "notify-send -t {expiration} -u normal -i dialog-{urgency} '{application}' '{message}'")
+
+        self.assertEqual(
             database.pre_run_command,
             'sudo mount -o remount,rw /mnt/backup/')
 

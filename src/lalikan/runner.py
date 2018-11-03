@@ -59,6 +59,9 @@ class BackupRunner:
             None
 
         """
+
+        print("[{}]".format(section))
+
         self.section = section
         self._database = lalikan.database.BackupDatabase(
             settings, self.section)
@@ -134,6 +137,20 @@ class BackupRunner:
 
         """
         return self._database.backup_directory
+
+
+    @property
+    def notification_command(self):
+        """
+        Attribute: command that is executed in the shell for notifications.
+
+        :returns:
+            shell command
+        :rtype:
+            String
+
+        """
+        return self._database.notification_command
 
 
     @property
@@ -814,8 +831,7 @@ class BackupRunner:
 
     def notify_user(self, message, urgency):
         """
-        Print message on shell and (on Linux) in notification area of the
-        window manager.
+        Print message on shell and in notification area of the window manager.
 
         :param message:
             message to be output
@@ -840,8 +856,8 @@ class BackupRunner:
         if not message:
             return
 
-        # notify user (only works on Linux)
-        if sys.platform == 'linux':
+        # notify user
+        if self.notification_command:
             # expire informational messages after 30 seconds
             if urgency == self.INFORMATION:
                 expiration = 30
@@ -850,12 +866,11 @@ class BackupRunner:
                 expiration = 0
 
             # compile shell command
-            command = "notify-send -t {} -u {} -i {} '{}' '{}'".format(
-                expiration * 1000,
-                'normal',
-                'dialog-{}'.format(urgency),
-                'Lalikan ({})'.format(self.section),
-                message)
+            command = self.notification_command.format(
+                application='Lalikan ({})'.format(self.section),
+                message=message,
+                urgency=urgency,
+                expiration=expiration * 1000)
 
             # run shell command
             self.execute_command_simple(command)
