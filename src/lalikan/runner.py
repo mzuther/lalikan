@@ -859,7 +859,7 @@ class BackupRunner:
         if self.notification_command:
             # expire informational messages after 30 seconds
             if urgency == self.INFORMATION:
-                expiration = 30
+                expiration = 30000
             # do not expire warnings and errors
             else:
                 expiration = 0
