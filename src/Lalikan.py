@@ -31,10 +31,10 @@ import lalikan.settings
 import lalikan.runner
 
 
-def check_requirements():
+def assert_requirements():
     """
-    Check application requirements.  Throws an exception should
-    requirements not be fulfilled.
+    Check application requirements.  Exits with an error if the  requirements
+    are not fulfilled.
 
     :rtype:
         None
@@ -42,8 +42,12 @@ def check_requirements():
     """
     # check Python version
     if sys.version_info.major != 3:
-        raise NotImplementedError('Lalikan does not run on Python {}.'.format(
+        print()
+        print('Lalikan does not run on Python {}.'.format(
             sys.version_info.major))
+        print()
+
+        exit(1)
 
 
 def print_header():
@@ -96,8 +100,8 @@ def parse_command_line(settings):
         lalikan.settings
 
     :returns:
-        selected backup section (**None** for all sections) and
-        whether a backup should be forced
+        selected a list of backup sections and whether backups should
+        be forced
     :rtype:
         tuple(section, force_backup)
 
@@ -145,7 +149,7 @@ def parse_command_line(settings):
         action='store_true',
         dest='force_backup',
         default=False,
-        help='force backup')
+        help='force backups')
 
     # parse command line
     args = parser.parse_args()
@@ -175,37 +179,34 @@ def parse_command_line(settings):
         list_sections('Backup sections:')
         exit(0)
 
-    # user asked to create a specific backup, ...
-    if args.section is not None:
-        # ..., but the specified backup section does not exist
-        if args.section not in settings.sections():
-            # print error message, list defined sections and exit
-            message = 'Could not find section "{}".  '.format(args.section)
-            message += 'Please use one of these sections:'
+    # user asked to create a specific backup which is not defined
+    if args.section and args.section not in settings.sections():
+        # print error message and exit
+        message = 'Could not find section "{}".  '.format(args.section)
+        message += 'Please use one of these sections:'
+        list_sections(message)
+        exit(1)
 
-            list_sections(message)
-            exit(1)
+    # create backup for specified section
+    if args.section:
+        sections = [args.section]
+    # create backup for all sections
+    else:
+        sections = settings.sections()
 
-    return (args.section, args.force_backup)
+    return (sections, args.force_backup)
 
 
 if __name__ == '__main__':
-    # check Python version
-    try:
-        check_requirements()
-    except Exception as err:
-        print()
-        print(err)
-        print()
-
-        exit(1)
+    # check application requirements; exits if a requirement is not met
+    assert_requirements()
 
     # load Lalikan settings
     config_filename = '/etc/lalikan'
     settings = lalikan.settings.Settings(config_filename)
 
     # parse command line
-    section, force_backup = parse_command_line(settings)
+    sections, force_backup = parse_command_line(settings)
 
     # print application name and version
     print_header()
@@ -214,6 +215,7 @@ if __name__ == '__main__':
     # on Linux, check whether the script runs with superuser rights
     if sys.platform == 'linux' and os.getuid() != 0:
         box_width = 24
+
         print(' ╔' + '═' * box_width + '╗')
         print(' ║' + ' ' * box_width + '║')
         print(' ║  YOU LACK SUPER POWER  ║')
@@ -227,21 +229,14 @@ if __name__ == '__main__':
         print(' ╚' + '═' * box_width + '╝')
         print()
 
-    # create backup for all sections
-    if section is None:
-        sections = settings.sections()
-    # create backup for specified section only
-    else:
-        sections = [section]
-
     # keep track of backup errors
     errors_occurred = False
 
     # loop over specified backup sections
-    for n in range(len(sections)):
+    for n, section in enumerate(sections):
         try:
             # create backup for section
-            lalikan.runner.BackupRunner(settings, sections[n], force_backup)
+            lalikan.runner.BackupRunner(settings, section, force_backup)
         except OSError as err:
             # print error message
             print(err)
