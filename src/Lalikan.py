@@ -133,8 +133,10 @@ def parse_command_line(settings):
         default=False,
         help='list all defined backup sections and exit')
 
+    group = parser.add_mutually_exclusive_group()
+
     # argument: create backup for section only
-    parser.add_argument(
+    group.add_argument(
         '-s', '--section',
         action='store',
         dest='section',
@@ -143,13 +145,14 @@ def parse_command_line(settings):
         help='create backup for SECTION (otherwise, backups for all '
              'sections will be created)')
 
-    # argument: force backup
-    parser.add_argument(
+    # argument: force backup for section
+    group.add_argument(
         '--force',
-        action='store_true',
+        action='store',
         dest='force_backup',
-        default=False,
-        help='force backups')
+        metavar='SECTION',
+        default=None,
+        help='force backup for SECTION')
 
     # parse command line
     args = parser.parse_args()
@@ -188,13 +191,19 @@ def parse_command_line(settings):
         exit(1)
 
     # create backup for specified section
-    if args.section:
+    if args.force_backup:
+        sections = [args.force_backup]
+        force_backup = True
+    # create backup for specified section
+    elif args.section:
         sections = [args.section]
+        force_backup = False
     # create backup for all sections
     else:
         sections = settings.sections()
+        force_backup = False
 
-    return (sections, args.force_backup)
+    return (sections, force_backup)
 
 
 if __name__ == '__main__':
