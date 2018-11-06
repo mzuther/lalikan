@@ -19,7 +19,7 @@
 #
 # Thank you for using free software!
 
-import configparser
+import json
 
 
 class Settings:
@@ -63,9 +63,8 @@ Thank you for using free software!"""
         self._description = 'Backup scheduler for Disk ARchive (DAR).'
 
         # parse config file
-        with open(config_filename, 'rt', encoding='utf-8') as infile:
-            self._settings = configparser.ConfigParser(interpolation=None)
-            self._settings.read_file(infile)
+        with open(config_filename, 'r') as f:
+            self._settings = json.load(f)
 
 
     def __repr__(self):
@@ -117,13 +116,13 @@ Thank you for using free software!"""
             String
 
         """
-        if allow_empty:
-            value = self._settings.get(section, option_name, fallback='')
-        else:
-            value = self._settings.get(section, option_name)
-            assert value != ''
-
-        return value
+        try:
+            return self._settings["sections"][section][option_name]
+        except KeyError as err:
+            if allow_empty:
+                return ''
+            else:
+                raise err
 
 
     def options(self, section):
@@ -141,7 +140,8 @@ Thank you for using free software!"""
             Tuple
 
         """
-        return tuple(sorted(self._settings.options(section), key=str.lower))
+        return tuple(sorted(self._settings["sections"][section],
+                     key=str.lower))
 
 
     def items(self, section):
@@ -159,8 +159,8 @@ Thank you for using free software!"""
             Tuple
 
         """
-        items = self._settings.items(section)
-        return tuple(sorted(items, key=lambda i: str.lower(i[0])))
+        return tuple(sorted(self._settings["sections"][section].items(),
+                     key=lambda i: str.lower(i[0])))
 
 
     def sections(self):
@@ -173,7 +173,7 @@ Thank you for using free software!"""
             Tuple
 
         """
-        sections = sorted(self._settings.sections(), key=str.lower)
+        sections = sorted(self._settings["sections"], key=str.lower)
 
         # move section 'Default' to the top so that the default backup
         # will be run first

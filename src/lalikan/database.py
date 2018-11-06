@@ -230,7 +230,7 @@ class BackupDatabase:
             String
 
         """
-        return self._get_option('dar_path')
+        return self._get_option('dar-path')
 
 
     @property
@@ -244,7 +244,7 @@ class BackupDatabase:
             String
 
         """
-        return self._get_option('dar_options', True)
+        return self._get_option('dar-options', True)
 
 
     @property
@@ -258,7 +258,7 @@ class BackupDatabase:
             String
 
         """
-        return self._get_option('backup_directory')
+        return self._get_option('backup-directory')
 
 
     @property
@@ -272,7 +272,7 @@ class BackupDatabase:
             :py:mod:`datetime.timedelta`
 
         """
-        interval = self._get_option('interval_full')
+        interval = self._get_option('interval-full')
         return float(interval)
 
 
@@ -287,7 +287,7 @@ class BackupDatabase:
             :py:mod:`datetime.timedelta`
 
         """
-        interval = self._get_option('interval_diff')
+        interval = self._get_option('interval-diff')
         return float(interval)
 
 
@@ -302,7 +302,7 @@ class BackupDatabase:
             :py:mod:`datetime.timedelta`
 
         """
-        interval = self._get_option('interval_incr')
+        interval = self._get_option('interval-incr')
         return float(interval)
 
 
@@ -360,7 +360,7 @@ class BackupDatabase:
             :py:mod:`datetime.datetime`
 
         """
-        start_time = self._get_option('start_time')
+        start_time = self._get_option('start-time')
         return datetime.datetime.strptime(start_time, self.date_format)
 
 
@@ -413,7 +413,7 @@ class BackupDatabase:
             String
 
         """
-        return self._get_option('command_notification', True)
+        return self._get_option('command-notification', True)
 
 
     @property
@@ -428,7 +428,7 @@ class BackupDatabase:
             String
 
         """
-        return self._get_option('command_pre_run', True)
+        return self._get_option('command-pre-run', True)
 
 
     @property
@@ -443,7 +443,7 @@ class BackupDatabase:
             String
 
         """
-        return self._get_option('command_post_run', True)
+        return self._get_option('command-post-run', True)
 
 
     def get_level_name(self, backup_level):

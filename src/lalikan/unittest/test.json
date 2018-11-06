@@ -1,0 +1,53 @@
+{
+	"sections": {
+		"Test1": {
+			"backup-directory":  "/tmp/lalikan/test1",
+			"start-time":        "2012-01-01_2000",
+			"interval-full":     9.5,
+			"interval-diff":     4.0,
+			"interval-incr":     1.0,
+
+			"command-notification":
+				"notify-send -t {expiration} -u normal -i dialog-{urgency} '{application}' '{message}'",
+			"command-pre-run":
+				"sudo mount -o remount,rw /mnt/backup/",
+			"command-post-run":
+				"sudo mount -o remount,ro /mnt/backup/",
+			"dar-path":
+				"/usr/local/bin/dar",
+			"dar-options":
+				"--noconf --batch /etc/darrc --verbose=skipped"
+		},
+
+		"Test2": {
+			"backup-directory":  "/tmp/lalikan/test2",
+			"start-time":        "2012-01-01_2000",
+			"interval-full":     9.5,
+			"interval-diff":     3.8,
+			"interval-incr":     0.9,
+
+			"command-notification":
+				"notify-send -t {expiration} -u normal -i dialog-{urgency} '{application}' '{message}'",
+			"command-pre-run":
+				"sudo mount -o remount,rw /mnt/backup/",
+			"command-post-run":
+				"sudo mount -o remount,ro /mnt/backup/",
+			"dar-path":
+				"/usr/local/bin/dar",
+			"dar-options":
+				"--noconf --batch /etc/darrc --verbose=skipped"
+		},
+
+		"Default": {
+			"backup-directory":  "/tmp/lalikan/default"
+		},
+
+		"aaa": {
+			"backup-directory":  "/tmp/lalikan/aaa"
+		},
+
+		"zzz": {
+			"backup-directory":  "/tmp/lalikan/zzz"
+		}
+	}
+}

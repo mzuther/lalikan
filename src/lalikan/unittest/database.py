@@ -39,7 +39,7 @@ class TestBackupDatabase(unittest.TestCase):
         self.format = '%Y-%m-%d %H:%M:%S'
 
         module_path = os.path.dirname(os.path.realpath(__file__))
-        self.config_filename = os.path.join(module_path, 'test.ini')
+        self.config_filename = os.path.join(module_path, 'test.json')
         self.settings = lalikan.settings.Settings(self.config_filename)
 
 

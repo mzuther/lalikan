@@ -34,7 +34,7 @@ class TestSettings(unittest.TestCase):
         self.copyright_year = '2018'
 
         module_path = os.path.dirname(os.path.realpath(__file__))
-        self.config_filename = os.path.join(module_path, 'test.ini')
+        self.config_filename = os.path.join(module_path, 'test.json')
         self.settings = lalikan.settings.Settings(self.config_filename)
         self.section = 'Test1'
 
@@ -44,46 +44,56 @@ class TestSettings(unittest.TestCase):
 
     def test_get(self):
         self.assertEqual(
-            self.settings.get(self.section, 'backup_directory', False),
+            self.settings.get(self.section, 'backup-directory', False),
             '/tmp/lalikan/test1')
 
         self.assertEqual(
-            self.settings.get(self.section, 'XXXXXX_directory', True),
+            self.settings.get(self.section, 'XXXXXX-directory', True),
             '')
 
-        with self.assertRaises(configparser.NoOptionError):
-            self.settings.get(self.section, 'XXXXXX_directory', False)
+        with self.assertRaises(KeyError):
+            self.settings.get(self.section, 'XXXXXX-directory', False)
 
-        with self.assertRaises(configparser.NoSectionError):
-            self.settings.get('no_section', 'backup_directory', False)
+        with self.assertRaises(KeyError):
+            self.settings.get('no_section', 'backup-directory', False)
 
 
     def test_options(self):
-        options = []
-        for option in self.config_text.split('\n'):
-            if option == '[Test2]':
-                break
-            elif ':' in option:
-                options.append(option[:option.find(':')])
-
+        options = [
+            "backup-directory",
+            "command-notification",
+            "command-post-run",
+            "command-pre-run",
+            "dar-options",
+            "dar-path",
+            "interval-diff",
+            "interval-full",
+            "interval-incr",
+            "start-time"
+        ]
 
         self.assertTupleEqual(
             self.settings.options(self.section),
-            tuple(sorted(options, key=str.lower)))
+            tuple(options))
 
 
     def test_items(self):
-        items = []
-        for item in self.config_text.split('\n'):
-            if item == '[Test2]':
-                break
-            elif ':' in item:
-                item = tuple(item.split(': ', 1))
-                items.append(item)
+        items = (
+            ("backup-directory", "/tmp/lalikan/test1"),
+            ("command-notification", "notify-send -t {expiration} -u normal -i dialog-{urgency} '{application}' '{message}'"),
+            ("command-post-run", "sudo mount -o remount,ro /mnt/backup/"),
+            ("command-pre-run", "sudo mount -o remount,rw /mnt/backup/"),
+            ("dar-options", "--noconf --batch /etc/darrc --verbose=skipped"),
+            ("dar-path", "/usr/local/bin/dar"),
+            ("interval-diff", 4.0),
+            ("interval-full", 9.5),
+            ("interval-incr", 1.0),
+            ("start-time", "2012-01-01_2000")
+        )
 
         self.assertTupleEqual(
             self.settings.items(self.section),
-            tuple(sorted(items, key=lambda i: str.lower(i[0]))))
+            tuple(items))
 
 
     def test_sections(self):
