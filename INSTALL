@@ -1,9 +1,0 @@
-virtualenv --python=/usr/bin/python3 --prompt='\[\033[1;31m\](lalikan)\[\033[00m\] ' .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-
-pip freeze > VERSIONS
-[...]
-
-deactivate

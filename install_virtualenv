@@ -1,0 +1,54 @@
+#! /bin/bash
+
+ENVIRONMENT_NAME=lalikan
+PYTHON_PATH=/usr/bin/python3
+
+
+if [ -e ".venv.bak" ]; then
+    echo
+    echo "  Directory \".venv.bak\" already exists."
+    echo "  Exiting..."
+    echo
+
+    exit 1
+fi
+
+echo
+echo "  Leaving environment..."
+deactivate 2&>/dev/null
+
+echo "  Moving old environment to \".venv.bak\"..."
+
+mv ".venv" ".venv.bak"
+
+echo "  Creating new environment \"$ENVIRONMENT_NAME\"..."
+echo
+
+virtualenv --python="$PYTHON_PATH" \
+           --prompt="\[\033[1;31m\]($ENVIRONMENT_NAME)\[\033[00m\] " \
+           .venv
+
+if [ -f "requirements.txt" ]; then
+    echo
+    echo "  Entering new environment..."
+
+    source ".venv/bin/activate"
+
+    echo "  Installing required libraries..."
+    echo
+
+    pip install -r "requirements.txt"
+
+    echo
+    echo "  Storing library version numbers..."
+
+    pip freeze > "VERSIONS"
+fi
+
+echo
+
+echo "  Done. Please re-start your environment and test everything."
+echo "  If everything works as expected, please delete \".venv.bak\"."
+echo
+
+exit 0
