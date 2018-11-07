@@ -462,32 +462,9 @@ class BackupRunner:
             # store postfix
             postfix = self._database.postfix_incr
 
-            # get number of days since a backup
-            days_since_full = self._database.days_overdue(
-                self.full)
-            days_since_diff = self._database.days_overdue(
-                self.diff)
-            days_since_incr = self._database.days_overdue(
-                self.incr)
-
-            # positive numbers signify that a backup is due
-            diff_is_due = (days_since_diff >= 0)
-            incr_is_due = (days_since_incr >= 0)
-
-            days_since_backup = days_since_full
-            current_level = self.full
-
-            if diff_is_due and days_since_diff < days_since_backup:
-                days_since_backup = days_since_diff
-                current_level = self.diff
-
-            if incr_is_due and days_since_incr < days_since_backup:
-                days_since_backup = days_since_incr
-                current_level = self.incr
-
-            # get reference backup
+            # get reference backup (latest backup of type "incr")
             reference_backup = self._database.last_existing_backup(
-                current_level)
+                self.incr)
 
         now = datetime.datetime.now()
 
