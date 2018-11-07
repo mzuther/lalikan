@@ -448,7 +448,7 @@ class BackupRunner:
             postfix = self._database.postfix_full
 
             # no reference for full backup
-            reference_option = ''
+            reference_backup = None
         # differential backup
         elif backup_level == self.diff:
             # store postfix
@@ -457,14 +457,6 @@ class BackupRunner:
             # get reference backup (latest backup of type "full")
             reference_backup = self._database.last_existing_backup(
                 self.full)
-
-            # get catalog name of reference backup
-            reference_catalog = self.get_catalog_file(
-                reference_backup.base_name)
-
-            # format reference option for DAR
-            reference_option = '--ref ' + self.sanitise_path(
-                reference_catalog)
         # incremental backup
         elif backup_level == self.incr:
             # store postfix
@@ -497,14 +489,6 @@ class BackupRunner:
             reference_backup = self._database.last_existing_backup(
                 current_level)
 
-            # get catalog name of reference backup
-            reference_catalog = self.get_catalog_file(
-                reference_backup.base_name)
-
-            # format reference option for DAR
-            reference_option = '--ref ' + self.sanitise_path(
-                reference_catalog)
-
         now = datetime.datetime.now()
 
         timestamp = now.strftime(self._database.date_format)
@@ -517,8 +501,23 @@ class BackupRunner:
         catalog_file = os.path.join(base_directory, catalog_name)
 
         print()
-        print('basefile: {}\n'.format(base_file))
+        print('base: {}'.format(base_directory))
 
+        if reference_backup is None:
+            reference_option = ''
+        else:
+            # get catalog name of reference backup
+            reference_catalog = self.get_catalog_file(
+                reference_backup.base_name)
+
+            # format reference option for DAR
+            reference_option = '--ref ' + self.sanitise_path(
+                reference_catalog)
+
+            print('ref:  {}'.format(self.get_base_directory(
+                reference_backup.base_name)))
+
+        print()
         os.mkdir(base_directory)
 
         command = '{dar} --create {base} {ref} -Q {options}'.format(
