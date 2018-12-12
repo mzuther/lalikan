@@ -301,16 +301,16 @@ class BackupRunner:
             stderr=subprocess.PIPE)
 
         # communicate with shell command and wait for it to end
-        output = proc.communicate()
+        stdout_data, stderr_data = proc.communicate()
 
         # store exit code
         retcode = proc.wait()
 
-        # notify user of possible output on stdin
-        self.notify_user(output[0], self.INFORMATION)
+        # notify user of possible output on stdout
+        self.notify_user(stdout_data, self.INFORMATION, True)
 
         # notify user of possible output on sterr
-        self.notify_user(output[1], self.ERROR)
+        self.notify_user(stderr_data, self.ERROR, True)
 
         # return exit code
         return retcode
@@ -404,6 +404,8 @@ class BackupRunner:
 
             # return if no backup is scheduled
             if needed_backup_level is None:
+                self.notify_user('No backup created.',
+                                 self.INFORMATION, True)
                 return
             # if a backup is forced, set backup type to "incremental"
             # (but do not update backup level name, so the user can
@@ -413,13 +415,13 @@ class BackupRunner:
 
             # notify user that backup creation is starting
             self.notify_user('Creating {} backup...'.format(level_name),
-                             self.INFORMATION)
+                             self.INFORMATION, False)
 
             # run backup command
             self.run_dar(needed_backup_level)
 
             # notify user that backup creation has finished
-            self.notify_user('Finished.', self.INFORMATION)
+            self.notify_user('Finished.', self.INFORMATION, False)
             print()
         finally:
             # execute post-run command (regardless of errors)
@@ -509,16 +511,16 @@ class BackupRunner:
 
         if retcode == 11:
             self.notify_user('Some files were changed during backup.',
-                             self.WARNING)
+                             self.WARNING, True)
         elif retcode > 0:
             # FIXME: maybe catch exceptions
             # FIXME: delete slices and directory
             self.notify_user('dar exited with code {}.'.format(retcode),
-                             self.ERROR)
+                             self.ERROR, True)
 
         self.notify_user('{0[number_of_files]} file(s), {0[size]}\n'.format(
             self.get_backup_size(base_name)),
-            self.INFORMATION)
+            self.INFORMATION, True)
 
         # isolate catalog
         command = '{dar} --isolate {base} --ref {ref} -Q {options}'.format(
@@ -534,7 +536,7 @@ class BackupRunner:
         if retcode == 5:
             self.notify_user('Some files do not follow chronological '
                              'order when archive index increases.',
-                             self.WARNING)
+                             self.WARNING, True)
         elif retcode > 0:
             # FIXME: maybe catch exceptions
             # FIXME: delete slices and directory
@@ -804,7 +806,7 @@ class BackupRunner:
         return self._database.sanitise_path(path)
 
 
-    def notify_user(self, message, urgency):
+    def notify_user(self, message, urgency, use_notification_area):
         """
         Print message on shell and in notification area of the window manager.
 
@@ -817,6 +819,11 @@ class BackupRunner:
             urgency of message
         :type urgency:
             pre-defined String
+
+        :param use_notification_area:
+            notify user in notification area
+        :type use_notification_area:
+            Boolean
 
         :rtype:
             None
@@ -832,7 +839,7 @@ class BackupRunner:
             return
 
         # notify user
-        if self.notification_command:
+        if use_notification_area and self.notification_command:
             # expire informational messages after 30 seconds
             if urgency == self.INFORMATION:
                 expiration = 30000
