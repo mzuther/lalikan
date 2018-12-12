@@ -518,7 +518,9 @@ class BackupRunner:
             self.notify_user('dar exited with code {}.'.format(retcode),
                              self.ERROR, True)
 
-        self.notify_user('{0[number_of_files]} file(s), {0[size]}\n'.format(
+        format_line = '{0} backup, {1[size]} in {1[number_of_files]} file(s)\n'
+        self.notify_user(format_line.format(
+            self.get_level_name(backup_level).capitalize(),
             self.get_backup_size(base_name)),
             self.INFORMATION, True)
 
