@@ -616,15 +616,15 @@ class BackupRunner:
 
             # delete differential archive files prior to previous full
             # backup
-            for base_name in self.find_existing_backups(
+            for backup_property in self.find_existing_backups(
                     self.diff, previous_date):
-                self.delete_archive_files(base_name)
+                self.delete_archive_files(backup_property.base_name)
 
             # delete incremental archive files prior to previous full
             # backup
-            for base_name in self.find_existing_backups(
+            for backup_property in self.find_existing_backups(
                     self.incr, previous_date):
-                self.delete_archive_files(base_name)
+                self.delete_archive_files(backup_property.base_name)
 
             # get all remaining differential backups
             existing_diffs = self.find_existing_backups(
@@ -645,9 +645,9 @@ class BackupRunner:
 
                 # delete incremental archive files prior to current
                 # differential backup
-                for base_name in self.find_existing_backups(
+                for backup_property in self.find_existing_backups(
                         self.incr, current_diff_date):
-                    self.delete_archive_files(base_name)
+                    self.delete_archive_files(backup_property.base_name)
 
         # differential backup
         elif backup_level == self.diff:
@@ -658,9 +658,9 @@ class BackupRunner:
 
             # delete incremental archive files prior to previous
             # differential backup
-            for base_name in self.find_existing_backups(
+            for backup_property in self.find_existing_backups(
                     self.incr, previous_date):
-                self.delete_archive_files(base_name)
+                self.delete_archive_files(backup_property.base_name)
 
         # so far, only archive files have been deleted; we still have
         # to remove the remaining empty directories
