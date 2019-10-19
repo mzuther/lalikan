@@ -101,16 +101,16 @@ class TestBackupProperties(unittest.TestCase):
         start_time = datetime.datetime.now()
 
         with self.assertRaises(ValueError):
-            property = BackupProperties('2012-01-01_1959', 0)
+            BackupProperties('2012-01-01_1959', 0)
 
         with self.assertRaises(ValueError):
-            property = BackupProperties(start_time, None)
+            BackupProperties(start_time, None)
 
         with self.assertRaises(ValueError):
-            property = BackupProperties(start_time, 3)
+            BackupProperties(start_time, 3)
 
         with self.assertRaises(ValueError):
-            property = BackupProperties(start_time, 'krzm')
+            BackupProperties(start_time, 'krzm')
 
 
     def test_comparison_1(self):

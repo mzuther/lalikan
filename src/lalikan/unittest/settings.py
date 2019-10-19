@@ -19,7 +19,6 @@
 #
 # Thank you for using free software!
 
-import configparser
 import os.path
 import unittest
 
