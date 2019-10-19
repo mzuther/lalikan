@@ -15,7 +15,7 @@ manual.
 
 ## License
 
-Copyright (c) 2010-2018 [Martin Zuther][mzuther]
+Copyright (c) 2010-2019 [Martin Zuther][mzuther]
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

@@ -2,7 +2,7 @@
 # =======
 # Backup scheduler for Disk ARchive (DAR)
 #
-# Copyright (c) 2010-2018 Dr. Martin Zuther (http://www.mzuther.de/)
+# Copyright (c) 2010-2019 Dr. Martin Zuther (http://www.mzuther.de/)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ class Settings:
         self._application = 'Lalikan.py'
         self._cmd_line = 'Lalikan'
         self._version = '0.92'
-        self._years = '2010-2018'
+        self._years = '2010-2019'
         self._authors = 'Dr. Martin Zuther'
         self._license_short = 'Licenced under the GPL version 3 (or later).'
         self._license_long = """This program is free software: you can redistribute it and/or modify
