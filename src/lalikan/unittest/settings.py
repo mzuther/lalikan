@@ -30,8 +30,6 @@ class TestSettings(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        self.version = '0.91'
-        self.copyright_year = '2018'
 
         module_path = os.path.dirname(os.path.realpath(__file__))
         self.config_filename = os.path.join(module_path, 'test.json')
@@ -107,14 +105,6 @@ class TestSettings(unittest.TestCase):
             self.settings.get_option('application'),
             'Lalikan.py')
 
-        self.assertEqual(
-            self.settings.get_option('version'),
-            self.version)
-
-        self.assertEqual(
-            self.settings.get_option('authors'),
-            'Dr. Martin Zuther')
-
         with self.assertRaises(ValueError):
             self.settings.get_option('XXXlication')
 
@@ -123,42 +113,6 @@ class TestSettings(unittest.TestCase):
         self.assertEqual(
             self.settings.get_description(),
             'Backup scheduler for Disk ARchive (DAR).')
-
-
-    def test_get_name_and_version(self):
-        self.assertEqual(
-            self.settings.get_name_and_version(),
-            'Lalikan.py {}'.format(self.version))
-
-
-    def test_get_copyrights(self):
-        self.assertEqual(
-            self.settings.get_copyrights(),
-            'Copyright (c) 2010-{0} Dr. Martin Zuther'.format(
-                self.copyright_year))
-
-
-    def test_get_license(self):
-        self.assertEqual(
-            self.settings.get_license(False),
-            'Licenced under the GPL version 3 (or later).')
-
-        self.assertEqual(
-            self.settings.get_license(True),
-            """This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-Thank you for using free software!""")
 
 
 def get_suite():
