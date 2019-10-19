@@ -220,20 +220,6 @@ class BackupDatabase:
 
 
     @property
-    def dar_path(self):
-        """
-        Attribute: file path to dar executable.
-
-        :returns:
-            file path to dar executable
-        :rtype:
-            String
-
-        """
-        return self._get_option('dar-path')
-
-
-    @property
     def dar_options(self):
         """
         Attribute: DAR command line options

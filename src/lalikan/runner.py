@@ -499,8 +499,7 @@ class BackupRunner:
         print()
         os.mkdir(base_directory)
 
-        command = '{dar} --create {base} {ref} -Q {options}'.format(
-            dar=self._database.dar_path,
+        command = 'dar --create {base} {ref} -Q {options}'.format(
             base=self.sanitise_path(base_file),
             ref=reference_option,
             options=self._database.dar_options)
@@ -525,8 +524,7 @@ class BackupRunner:
             self.INFORMATION, True)
 
         # isolate catalog
-        command = '{dar} --isolate {base} --ref {ref} -Q {options}'.format(
-            dar=self._database.dar_path,
+        command = 'dar --isolate {base} --ref {ref} -Q {options}'.format(
             base=self.sanitise_path(catalog_file),
             ref=self.sanitise_path(base_file),
             options=self._database.dar_options)

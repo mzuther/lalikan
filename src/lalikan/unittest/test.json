@@ -13,8 +13,6 @@
 				"sudo mount -o remount,rw /mnt/backup/",
 			"command-post-run":
 				"sudo mount -o remount,ro /mnt/backup/",
-			"dar-path":
-				"/usr/local/bin/dar",
 			"dar-options":
 				"--noconf --batch /etc/darrc --verbose=skipped"
 		},
@@ -32,8 +30,6 @@
 				"sudo mount -o remount,rw /mnt/backup/",
 			"command-post-run":
 				"sudo mount -o remount,ro /mnt/backup/",
-			"dar-path":
-				"/usr/local/bin/dar",
 			"dar-options":
 				"--noconf --batch /etc/darrc --verbose=skipped"
 		},

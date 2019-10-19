@@ -132,10 +132,6 @@ class TestBackupDatabase(unittest.TestCase):
             self.settings, 'Test1')
 
         self.assertEqual(
-            database.dar_path,
-            '/usr/local/bin/dar')
-
-        self.assertEqual(
             database.dar_options,
             '--noconf --batch /etc/darrc --verbose=skipped')
 
